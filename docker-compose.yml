@@ -1,0 +1,67 @@
+# Entorno de desarrollo: base de datos, Redis, API Django y worker de Celery.
+# La web (frontend/) y la app (mobile/) se ejecutan fuera de Docker para
+# tener recarga instantánea. Ver README.md.
+name: labficct
+
+services:
+  db:
+    image: postgres:18
+    # Lee POSTGRES_DB, POSTGRES_USER y POSTGRES_PASSWORD del mismo .env del backend.
+    env_file: ./backend/.env
+    volumes:
+      # Desde PostgreSQL 18 el volumen se monta en /var/lib/postgresql
+      # (no en /var/lib/postgresql/data como en versiones anteriores).
+      - pgdata:/var/lib/postgresql
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    # Puerto 5433 en tu PC para no chocar con un PostgreSQL que ya tengas instalado.
+    # Conéctate desde pgAdmin/DBeaver a localhost:5433.
+    ports:
+      - "${DB_PUERTO_LOCAL:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    # Sin puerto publicado: solo lo usan los contenedores (backend y worker),
+    # así no choca con otro Redis que tengas corriendo en tu PC.
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    env_file: ./backend/.env
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "${BACKEND_PUERTO_LOCAL:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./backend
+    env_file: ./backend/.env
+    # --beat: además ejecuta las tareas periódicas (avisos de aulas cada minuto,
+    # revisiones que vencen). Si cambias código de tareas, reinicia este servicio.
+    command: celery -A config worker --beat --schedule-filename /tmp/celerybeat-schedule -l info
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:

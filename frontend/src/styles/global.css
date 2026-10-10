@@ -1,0 +1,67 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* Solo el proveedor principal ocupa toda la altura. Las capas flotantes de
+   Fluent (tooltips, menús, avisos) se montan fuera de #root y no deben
+   heredar esta altura: si la heredan, tapan la página con una hoja blanca. */
+#root > .fui-FluentProvider {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+img {
+  max-width: 100%;
+}
+
+/* Los campos se ajustan al ancho de su columna. Sin esto, un campo de fecha u
+   hora (que el navegador dibuja con un ancho mínimo) empuja el panel hacia los
+   lados y aparece una barra de desplazamiento horizontal. */
+.fui-Field,
+.fui-Input,
+.fui-Select,
+.fui-Combobox,
+.fui-Dropdown,
+.fui-Textarea,
+.fui-SpinButton {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fui-Input__input,
+.fui-Combobox__input,
+.fui-Select__select {
+  min-width: 0;
+}
+
+/* Los paneles laterales nunca se desplazan a los lados. */
+.fui-DrawerBody {
+  overflow-x: hidden;
+}
+
+* {
+  scrollbar-width: thin;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,35 @@
+# ── Variables de entorno reales (nunca se suben) ──
+.env
+.env.*
+!.env.example
+mobile/env/*.env
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+backend/media/
+backend/privado/
+backend/staticfiles/
+
+# ── Node ──
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# ── Flutter ──
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.metadata
+
+# ── Editores y sistema ──
+.idea/
+.vscode/*
+!.vscode/launch.json
+.DS_Store
+Thumbs.db
