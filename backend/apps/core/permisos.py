@@ -65,6 +65,8 @@ MATRIZ: dict[str, set[str]] = {
     "tareas.ver": {ADMIN, AUXILIAR},
     "tareas.gestionar": {ADMIN, AUXILIAR},  # crear, mover y anotar avances
     "tareas.eliminar_todas": {ADMIN},  # cada quien puede borrar las que creó
+    # 14. Reportes (por ahora solo el Admin; R3, R4 y R5 podrían abrirse al Auxiliar)
+    "reportes.ver": {ADMIN},
 }
 
 

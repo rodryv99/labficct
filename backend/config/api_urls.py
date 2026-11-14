@@ -19,6 +19,7 @@ urlpatterns = [
     path("", include("apps.asistencia.urls")),
     path("", include("apps.bitacora.urls")),
     path("", include("apps.tareas.urls")),
+    path("", include("apps.reportes.urls")),
 ]
 
 # El esquema OpenAPI y Swagger solo se publican en desarrollo.

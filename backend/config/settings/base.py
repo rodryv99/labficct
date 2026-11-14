@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.asistencia",
     "apps.bitacora",
     "apps.tareas",
+    "apps.reportes",
 ]
 
 MIDDLEWARE = [
@@ -129,6 +130,8 @@ PRIVADO_ROOT = env("PRIVADO_ROOT", default=str(BASE_DIR / "privado"))
 # Clases y reservas deben caber aquí. La web y la app lo leen de /configuracion/.
 ATENCION_INICIO = env("ATENCION_INICIO", default="07:00")
 ATENCION_FIN = env("ATENCION_FIN", default="22:45")
+# Días con atención (1 = lunes … 7 = domingo). Los usa el reporte de ocupación.
+ATENCION_DIAS = env.list("ATENCION_DIAS", cast=int, default=[1, 2, 3, 4, 5, 6])
 FRANJAS_HABITUALES = env.list(
     "FRANJAS_HABITUALES",
     default=[
@@ -186,6 +189,8 @@ JWT_REFRESH_COOKIE_SECURE = not DEBUG
 # ── CORS y CSRF ─────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[FRONTEND_URL])
 CORS_ALLOW_CREDENTIALS = True
+# La web lee el nombre del archivo al descargar un reporte.
+CORS_EXPOSE_HEADERS = ["Content-Disposition"]
 CORS_ALLOW_HEADERS = [
     "accept",
     "authorization",
@@ -216,6 +221,10 @@ CELERY_BEAT_SCHEDULE = {
 # ── Avisos a los auxiliares ─────────────────────────────
 # Cuántos minutos antes de cada clase o reserva se avisa que alisten el aula.
 AVISO_ALISTAR_MINUTOS = env.int("AVISO_ALISTAR_MINUTOS", default=15)
+
+# ── Reportes ────────────────────────────────────────────
+# Rango máximo, en días, que se puede pedir en un reporte.
+REPORTE_MAX_DIAS = env.int("REPORTE_MAX_DIAS", default=366)
 
 # ── Documentación de la API (OpenAPI) ───────────────────
 SPECTACULAR_SETTINGS = {
