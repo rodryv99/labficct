@@ -116,6 +116,11 @@ export const ENDPOINTS = {
     estado: (id: Id) => `/tareas/${id}/estado/`,
     avances: (id: Id) => `/tareas/${id}/avances/`,
   },
+  reportes: {
+    lista: "/reportes/",
+    detalle: (codigo: string) => `/reportes/${codigo}/`,
+    exportar: (codigo: string) => `/reportes/${codigo}/exportar/`,
+  },
 } as const;
 
 /** Rutas de WebSocket (se usarán en la fase de notificaciones), sobre VITE_WS_BASE_URL. */

@@ -6,6 +6,7 @@ import {
   Add20Regular,
   Alert20Regular,
   ArrowClockwise20Regular,
+  ArrowDownload20Regular,
   ArrowLeft20Regular,
   ArrowRedo20Regular,
   ArrowSync20Filled,
@@ -29,10 +30,14 @@ import {
   Cube20Filled,
   Cube20Regular,
   Cursor20Regular,
+  DataBarVertical20Filled,
+  DataBarVertical20Regular,
   Delete20Regular,
   Desktop20Filled,
   Desktop20Regular,
   Dismiss20Regular,
+  DocumentPdf20Regular,
+  DocumentTable20Regular,
   Edit20Regular,
   Eraser20Regular,
   ErrorCircle20Regular,
@@ -87,11 +92,13 @@ export const IconoTareas = bundleIcon(TaskListSquareLtr20Filled, TaskListSquareL
 export const IconoBitacora = bundleIcon(Notebook20Filled, Notebook20Regular);
 export const IconoRevisiones = bundleIcon(ArrowSync20Filled, ArrowSync20Regular);
 export const IconoPreferencias = bundleIcon(Options20Filled, Options20Regular);
+export const IconoReportes = bundleIcon(DataBarVertical20Filled, DataBarVertical20Regular);
 
 export {
   Add20Regular as IconoAgregar,
   Alert20Regular as IconoCampana,
   ArrowClockwise20Regular as IconoRecargar,
+  ArrowDownload20Regular as IconoDescargar,
   ArrowLeft20Regular as IconoVolver,
   ArrowRedo20Regular as IconoRehacer,
   ArrowUndo20Regular as IconoDeshacer,
@@ -105,6 +112,8 @@ export {
   Cursor20Regular as IconoSeleccionar,
   Delete20Regular as IconoEliminar,
   Dismiss20Regular as IconoCerrar,
+  DocumentPdf20Regular as IconoPdf,
+  DocumentTable20Regular as IconoExcel,
   Edit20Regular as IconoEditar,
   Eraser20Regular as IconoBorrador,
   ErrorCircle20Regular as IconoError,

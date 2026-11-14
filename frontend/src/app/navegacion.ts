@@ -9,6 +9,7 @@ import {
   IconoObjetos,
   IconoPizarra,
   IconoPreferencias,
+  IconoReportes,
   IconoReservas,
   IconoRevisiones,
   IconoTareas,
@@ -80,6 +81,18 @@ export const NAVEGACION: GrupoNavegacion[] = [
         claves: "periódicas programadas mantenimiento",
       },
       { ruta: "/elementos", etiqueta: "Elementos", icono: IconoElementos, permiso: "elementos.catalogo", claves: "pc proyector íconos" },
+    ],
+  },
+  {
+    titulo: "Análisis",
+    items: [
+      {
+        ruta: "/reportes",
+        etiqueta: "Reportes",
+        icono: IconoReportes,
+        permiso: "reportes.ver",
+        claves: "estadísticas excel pdf ocupación inventario informes",
+      },
     ],
   },
   {

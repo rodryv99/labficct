@@ -11,6 +11,7 @@ import { LaboratoriosPage } from "../features/laboratorios/LaboratoriosPage";
 import { ObjetosPerdidosPage } from "../features/objetos-perdidos/ObjetosPerdidosPage";
 import { PizarraPage } from "../features/pizarra/PizarraPage";
 import { PreferenciasPage } from "../features/preferencias/PreferenciasPage";
+import { ReportesPage } from "../features/reportes/ReportesPage";
 import { ReservasPage } from "../features/reservas/ReservasPage";
 import { RevisionesPage } from "../features/revisiones/RevisionesPage";
 import { NoEncontradoPage, SinPermisoPage } from "../features/sistema/SinPermisoPage";
@@ -128,6 +129,14 @@ export const router = createBrowserRouter([
         element: (
           <ConPermiso permiso="bitacora.ver">
             <BitacoraPage />
+          </ConPermiso>
+        ),
+      },
+      {
+        path: "reportes/:codigo?",
+        element: (
+          <ConPermiso permiso="reportes.ver">
+            <ReportesPage />
           </ConPermiso>
         ),
       },
