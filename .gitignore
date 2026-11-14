@@ -26,6 +26,15 @@ mobile/build/
 mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
 mobile/.metadata
+# Generados por `flutter create` en cada equipo (ver README, paso 6).
+mobile/android/
+mobile/ios/
+mobile/.gitignore
+mobile/README.md
+
+# ── Notas personales ──
+/comandos.txt
+/docs/
 
 # ── Editores y sistema ──
 .idea/
