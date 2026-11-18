@@ -533,6 +533,28 @@ class Repositorio {
     return Preferencias.fromJson(r.data!);
   }
 
+  // ── Ajustes de interfaz (pizarra) ──
+  /// Qué laboratorios muestra la pizarra y en qué orden (ids). Vacío = todos.
+  Future<List<int>> laboratoriosPizarra() async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      Endpoints.preferenciaInterfaz('pizarra.laboratorios'),
+    );
+    final valor = r.data?['valor'];
+    final orden = valor is Map<String, dynamic> ? valor['orden'] : null;
+    if (orden is! List) return const [];
+    return orden.whereType<num>().map((e) => e.toInt()).toList();
+  }
+
+  /// Guarda el orden de laboratorios de la pizarra (ids). Lista vacía = mostrar todos.
+  Future<void> guardarLaboratoriosPizarra(List<int> orden) async {
+    await _dio.put<Map<String, dynamic>>(
+      Endpoints.preferenciaInterfaz('pizarra.laboratorios'),
+      data: {
+        'valor': {'orden': orden},
+      },
+    );
+  }
+
   /// Preferencias de todos los docentes (Admin y auxiliares), con buscador.
   Future<List<Preferencias>> preferenciasDocentes({String buscar = ''}) async {
     final r = await _dio.get<dynamic>(
@@ -877,7 +899,13 @@ class Repositorio {
       if (mapeo != null) 'mapeo': jsonEncode(mapeo),
       if (lugarPorDefecto != null) 'lugar_por_defecto': lugarPorDefecto.toString(),
     });
-    final r = await _dio.post<Map<String, dynamic>>(Endpoints.importarActivos, data: cuerpo);
+    // Leer un PDF de patrimonio (cientos de páginas) puede tardar bastante en el
+    // servidor; subimos el timeout solo para esta operación para no cortar la espera.
+    final r = await _dio.post<Map<String, dynamic>>(
+      Endpoints.importarActivos,
+      data: cuerpo,
+      options: Options(receiveTimeout: const Duration(minutes: 3)),
+    );
     return r.data!;
   }
 

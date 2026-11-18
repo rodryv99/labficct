@@ -32,6 +32,7 @@ class _ActivoFormPageState extends ConsumerState<ActivoFormPage> {
   final _marca = TextEditingController();
   final _modelo = TextEditingController();
   final _serie = TextEditingController();
+  final _responsable = TextEditingController();
   final _observaciones = TextEditingController();
 
   int? _tipo;
@@ -54,6 +55,7 @@ class _ActivoFormPageState extends ConsumerState<ActivoFormPage> {
       _marca.text = a.marca;
       _modelo.text = a.modelo;
       _serie.text = a.serie;
+      _responsable.text = a.responsable;
       _observaciones.text = a.observaciones;
       _tipo = a.tipo;
       _fecha = DateTime.tryParse(a.fechaAdquisicion);
@@ -67,6 +69,7 @@ class _ActivoFormPageState extends ConsumerState<ActivoFormPage> {
     _marca.dispose();
     _modelo.dispose();
     _serie.dispose();
+    _responsable.dispose();
     _observaciones.dispose();
     super.dispose();
   }
@@ -118,6 +121,7 @@ class _ActivoFormPageState extends ConsumerState<ActivoFormPage> {
       'modelo': _modelo.text.trim(),
       'serie': _serie.text.trim(),
       'fecha_adquisicion': _fecha == null ? null : fechaIso(_fecha!),
+      'responsable': _responsable.text.trim(),
       'observaciones': _observaciones.text.trim(),
     };
 
@@ -343,6 +347,16 @@ class _ActivoFormPageState extends ConsumerState<ActivoFormPage> {
                   _fecha == null ? 'Sin fecha' : fechaCortaIso(fechaIso(_fecha!)),
                   style: _fecha == null ? TextStyle(color: esquema.onSurfaceVariant) : null,
                 ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _responsable,
+              maxLength: 120,
+              decoration: const InputDecoration(
+                labelText: 'Responsable (opcional)',
+                hintText: 'Ej.: 5599-HIGUERAS HUANCA LUIS ENRIQUE',
+                counterText: '',
               ),
             ),
             const SizedBox(height: 12),

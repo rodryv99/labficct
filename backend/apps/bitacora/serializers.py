@@ -14,6 +14,7 @@ from .models import EntradaBitacora, RevisionProgramada
 
 class EntradaBitacoraSerializer(serializers.ModelSerializer):
     laboratorio_codigo = serializers.CharField(source="laboratorio.codigo", read_only=True)
+    laboratorio_nombre = serializers.CharField(source="laboratorio.nombre", read_only=True)
     tipo_nombre = serializers.CharField(source="get_tipo_display", read_only=True)
     autor = serializers.IntegerField(source="creado_por_id", read_only=True)
     autor_nombre = serializers.SerializerMethodField()
@@ -29,6 +30,7 @@ class EntradaBitacoraSerializer(serializers.ModelSerializer):
             "id",
             "laboratorio",
             "laboratorio_codigo",
+            "laboratorio_nombre",
             "tipo",
             "tipo_nombre",
             "titulo",

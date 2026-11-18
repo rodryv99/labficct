@@ -186,6 +186,10 @@ SIMPLE_JWT = {
 JWT_REFRESH_COOKIE_NAME = env("JWT_REFRESH_COOKIE_NAME", default="labficct_refresh")
 JWT_REFRESH_COOKIE_PATH = f"/{API_PREFIX}auth/"
 JWT_REFRESH_COOKIE_SECURE = not DEBUG
+# "Lax" sirve cuando web y API comparten dominio (local). Si la web va en otro
+# dominio que la API (Netlify ↔ Render), hay que poner "None" (y Secure=True) para
+# que el navegador mande la cookie en las peticiones cross-site. Ver prod.py.
+JWT_REFRESH_COOKIE_SAMESITE = env("JWT_REFRESH_COOKIE_SAMESITE", default="Lax")
 
 # ── CORS y CSRF ─────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[FRONTEND_URL])

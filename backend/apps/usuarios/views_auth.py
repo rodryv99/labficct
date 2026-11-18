@@ -44,7 +44,7 @@ def _poner_cookie(respuesta, token: str, recordar: bool):
         max_age=duracion if recordar else None,
         httponly=True,
         secure=settings.JWT_REFRESH_COOKIE_SECURE,
-        samesite="Lax",
+        samesite=settings.JWT_REFRESH_COOKIE_SAMESITE,
         path=settings.JWT_REFRESH_COOKIE_PATH,
     )
 
@@ -53,7 +53,7 @@ def _borrar_cookie(respuesta):
     respuesta.delete_cookie(
         settings.JWT_REFRESH_COOKIE_NAME,
         path=settings.JWT_REFRESH_COOKIE_PATH,
-        samesite="Lax",
+        samesite=settings.JWT_REFRESH_COOKIE_SAMESITE,
     )
 
 

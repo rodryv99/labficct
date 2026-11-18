@@ -21,6 +21,7 @@ const _camposImportables = [
   ('serie', 'Número de serie'),
   ('estado', 'Estado'),
   ('fecha_adquisicion', 'Fecha de adquisición'),
+  ('responsable', 'Responsable'),
   ('observaciones', 'Observaciones'),
 ];
 
@@ -51,7 +52,7 @@ class _ImportarActivosPageState extends ConsumerState<ImportarActivosPage> {
     try {
       elegido = await FilePicker.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['xlsx', 'xlsm', 'csv', 'txt'],
+        allowedExtensions: ['xlsx', 'xlsm', 'csv', 'txt', 'pdf'],
       );
     } catch (_) {
       if (mounted) avisar(context, 'No se pudo abrir el selector de archivos.', error: true);
@@ -164,7 +165,13 @@ class _ImportarActivosPageState extends ConsumerState<ImportarActivosPage> {
       refrescarInventario(contenedor);
       if (!mounted) return;
       final creados = (r['creados'] as num?)?.toInt() ?? 0;
-      avisar(context, 'Se importaron $creados activo(s).');
+      final omitidos = (r['omitidos_total'] as num?)?.toInt() ?? 0;
+      avisar(
+        context,
+        omitidos > 0
+            ? 'Se importaron $creados activo(s). Se omitieron $omitidos por código repetido.'
+            : 'Se importaron $creados activo(s).',
+      );
       Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
@@ -188,8 +195,9 @@ class _ImportarActivosPageState extends ConsumerState<ImportarActivosPage> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
         children: [
           Text(
-            'Sube un Excel (.xlsx) o un CSV con una fila por activo. Luego indica qué columna '
-            'es cada dato y revisa la vista previa antes de importar.',
+            'Sube un Excel, un CSV o un PDF (incluido el formato de patrimonio de la UAGRM). '
+            'Reconozco las columnas por su título o por lo que contienen; revisa la vista previa '
+            'antes de importar. Los códigos repetidos se omiten y te aviso cuáles.',
             style: tema.textTheme.bodyMedium?.copyWith(color: tema.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
@@ -239,6 +247,21 @@ class _ImportarActivosPageState extends ConsumerState<ImportarActivosPage> {
             ),
             const TituloSeccion('Resumen'),
             _Resumen(resultado: r),
+            if ((r['omitidos'] as List? ?? const []).isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _Aviso(
+                color: tema.colorScheme.tertiaryContainer,
+                frente: tema.colorScheme.onTertiaryContainer,
+                icono: Icons.filter_alt_off_outlined,
+                titulo: 'Omitidos por código repetido',
+                lineas: [
+                  for (final o in (r['omitidos'] as List).cast<Map<String, dynamic>>())
+                    (o['motivo'] ?? '').toString().isEmpty
+                        ? (o['codigo'] ?? '').toString()
+                        : '${o['codigo']} · ${o['motivo']}',
+                ],
+              ),
+            ],
             if (faltan.isNotEmpty) ...[
               const SizedBox(height: 10),
               _Aviso(
@@ -362,7 +385,7 @@ class _Resumen extends StatelessWidget {
       children: [
         _chip(context, 'Filas: ${_n('total')}', Tono.neutro),
         _chip(context, 'Se importan: ${_n('validas')}', Tono.exito),
-        if (_n('existentes') > 0) _chip(context, 'Ya existen: ${_n('existentes')}', Tono.aviso),
+        if (_n('omitidos_total') > 0) _chip(context, 'Omitidos: ${_n('omitidos_total')}', Tono.aviso),
         if (_n('con_error') > 0) _chip(context, 'Con error: ${_n('con_error')}', Tono.peligro),
       ],
     );

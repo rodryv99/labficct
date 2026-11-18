@@ -1232,6 +1232,7 @@ class EntradaBitacora {
     required this.elementos,
     required this.autorNombre,
     required this.editable,
+    this.laboratorioNombre = '',
     this.fecha,
     this.mapa,
   });
@@ -1239,6 +1240,7 @@ class EntradaBitacora {
   final int id;
   final int laboratorio;
   final String laboratorioCodigo;
+  final String laboratorioNombre;
   final String tipo;
   final String tipoNombre;
   final String titulo;
@@ -1254,6 +1256,7 @@ class EntradaBitacora {
         id: _entero(j['id']),
         laboratorio: _entero(j['laboratorio']),
         laboratorioCodigo: _texto(j['laboratorio_codigo']),
+        laboratorioNombre: _texto(j['laboratorio_nombre']),
         tipo: _texto(j['tipo']),
         tipoNombre: _texto(j['tipo_nombre']),
         titulo: _texto(j['titulo']),
@@ -1457,6 +1460,7 @@ class Activo {
     required this.lugarNombre,
     required this.observaciones,
     this.tipo,
+    this.responsable = '',
     this.creadoPorNombre = '',
     this.enMapa = const [],
     this.movimientos = const [],
@@ -1481,6 +1485,9 @@ class Activo {
   final int lugar;
   final String lugarNombre;
   final String observaciones;
+
+  /// Quién responde por el activo (formato patrimonio UAGRM). Puede venir vacío.
+  final String responsable;
 
   // Solo en la ficha:
   final String creadoPorNombre;
@@ -1512,6 +1519,7 @@ class Activo {
         lugar: _entero(j['lugar'] ?? 0),
         lugarNombre: _texto(j['lugar_nombre']),
         observaciones: _texto(j['observaciones']),
+        responsable: _texto(j['responsable']),
         creadoPorNombre: _texto(j['creado_por_nombre']),
         enMapa: (j['en_mapa'] as List? ?? const [])
             .map((c) => ActivoEnMapa.fromJson(c as Map<String, dynamic>))

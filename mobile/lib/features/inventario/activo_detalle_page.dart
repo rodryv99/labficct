@@ -176,6 +176,7 @@ class _Contenido extends StatelessWidget {
         _Dato('Marca y modelo', [a.marca, a.modelo].where((x) => x.isNotEmpty).join(' · '), vacio: 'Sin registrar'),
         _Dato('Número de serie', a.serie, vacio: 'Sin registrar'),
         _Dato('Adquisición', fechaCortaIso(a.fechaAdquisicion), vacio: 'Sin registrar'),
+        _Dato('Responsable', a.responsable, vacio: 'Sin registrar'),
         if (a.enMapa.isNotEmpty)
           _Dato('En el mapa', a.enMapa.map((c) => '${c.laboratorioCodigo} · ${c.etiqueta}').join(', ')),
         if (a.observaciones.isNotEmpty) ...[
