@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from apps.core.models import ModeloBase
@@ -41,3 +42,29 @@ class PreferenciasDocente(ModeloBase):
 
     def __str__(self):
         return f"Preferencias de {self.docente}"
+
+
+class PreferenciaInterfaz(models.Model):
+    """Ajuste de interfaz que cada usuario guarda para sí mismo.
+
+    Es una bolsa genérica clave → valor por usuario. Hoy la usa la pizarra para
+    recordar qué laboratorios muestra cada quien y en qué orden
+    (clave "pizarra.laboratorios", valor {"orden": [12, 7, 3]}).
+    """
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="preferencias_interfaz"
+    )
+    clave = models.CharField(max_length=60)
+    valor = models.JSONField(default=dict, blank=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "preferencia de interfaz"
+        verbose_name_plural = "preferencias de interfaz"
+        constraints = [
+            models.UniqueConstraint(fields=["usuario", "clave"], name="preferencia_interfaz_unica"),
+        ]
+
+    def __str__(self):
+        return f"{self.usuario_id} · {self.clave}"

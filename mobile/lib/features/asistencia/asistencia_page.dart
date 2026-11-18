@@ -46,14 +46,14 @@ class AsistenciaPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Asistencia'),
+        title: const Text('Asistencia técnica'),
         actions: const [BotonNotificaciones(), BotonPerfil()],
       ),
       floatingActionButton: puedePedir
           ? FloatingActionButton.extended(
               onPressed: () => context.push('/asistencia/nueva'),
               icon: const Icon(Icons.support_agent),
-              label: const Text('Pedir asistencia'),
+              label: const Text('Pedir asistencia técnica'),
             )
           : null,
       body: RefreshIndicator(
@@ -113,9 +113,17 @@ class _SolicitudesPageState extends ConsumerState<SolicitudesPage> {
   @override
   Widget build(BuildContext context) {
     final solicitudes = ref.watch(solicitudesProvider(_abiertas));
+    final puedePedir = ref.watch(sesionProvider).usuario?.puede('asistencia.solicitar') ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Solicitudes de asistencia')),
+      appBar: AppBar(title: const Text('Asistencia técnica')),
+      floatingActionButton: puedePedir
+          ? FloatingActionButton.extended(
+              onPressed: () => context.push('/asistencia/nueva'),
+              icon: const Icon(Icons.support_agent),
+              label: const Text('Pedir asistencia técnica'),
+            )
+          : null,
       body: Column(
         children: [
           Padding(

@@ -28,7 +28,9 @@ import { almacen } from "../../lib/utiles";
 import { listarLaboratoriosTodos } from "../laboratorios/api";
 import { obtenerAgenda } from "../reservas/api";
 import { EventoPanel } from "./EventoPanel";
+import { usePizarraLabs } from "./preferencias";
 import { type ColumnaRejilla, RejillaTiempo } from "./RejillaTiempo";
+import { SelectorLaboratoriosPizarra } from "./SelectorLaboratoriosPizarra";
 import { VistaProximas } from "./VistaProximas";
 
 type Vista = "dia" | "semana" | "proximas";
@@ -101,6 +103,14 @@ export function PizarraPage() {
   const laboratorios = useQuery({ queryKey: ["laboratorios", "todos"], queryFn: listarLaboratoriosTodos });
   const labs = useMemo(() => (laboratorios.data ?? []).filter((l) => l.activo), [laboratorios.data]);
 
+  // Preferencia por usuario: qué laboratorios muestra la vista "Por laboratorio" y en qué orden.
+  const { orden: ordenLabs, guardarOrden } = usePizarraLabs();
+  const labsVisibles = useMemo(() => {
+    if (ordenLabs.length === 0) return labs; // sin preferencia: se muestran todos
+    const porId = new Map(labs.map((l) => [l.id, l]));
+    return ordenLabs.map((id) => porId.get(id)).filter((l): l is (typeof labs)[number] => Boolean(l));
+  }, [labs, ordenLabs]);
+
   useEffect(() => {
     if (labSemana === null && labs.length) setLabSemana(labs[0].id);
   }, [labs, labSemana]);
@@ -134,7 +144,7 @@ export function PizarraPage() {
 
   let columnas: ColumnaRejilla[] = [];
   if (vista === "dia") {
-    columnas = labs.map((l) => ({
+    columnas = labsVisibles.map((l) => ({
       clave: String(l.id),
       titulo: l.codigo,
       subtitulo: l.nombre,
@@ -216,6 +226,9 @@ export function PizarraPage() {
               onChange={(_, d) => d.value && setFecha(desdeISO(d.value))}
             />
           </div>
+        )}
+        {vista === "dia" && labs.length > 0 && (
+          <SelectorLaboratoriosPizarra laboratorios={labs} orden={ordenLabs} onCambio={guardarOrden} />
         )}
         {vista === "semana" && (
           <Select

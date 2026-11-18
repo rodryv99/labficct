@@ -1,4 +1,5 @@
 import {
+  Body1,
   Button,
   Field,
   Input,
@@ -8,23 +9,34 @@ import {
   SpinButton,
   Switch,
   Textarea,
+  Tooltip,
   makeStyles,
 } from "@fluentui/react-components";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
+import { mensajeDeError } from "../../api/errores";
 import type { EstadoLaboratorio, Laboratorio } from "../../api/tipos";
+import { useSesion } from "../../app/sesion";
+import { ConfirmarDialogo } from "../../components/feedback/ConfirmarDialogo";
 import { useNotificar } from "../../components/feedback/notificaciones";
 import { PanelFormulario } from "../../components/formularios/PanelFormulario";
+import { IconoEliminar } from "../../components/iconos/iconos";
 import { ESTADOS_LABORATORIO } from "../../lib/constantes";
 import { estadoCampo, useFormulario } from "../../lib/useFormulario";
-import { type DatosLaboratorio, actualizarLaboratorio, crearLaboratorio } from "./api";
+import { type DatosLaboratorio, actualizarLaboratorio, crearLaboratorio, eliminarLaboratorio } from "./api";
+
+/** Para borrar hay que escribir esta palabra: evita eliminar un laboratorio por error. */
+const PALABRA_ELIMINAR = "ELIMINAR";
 
 const useEstilos = makeStyles({
   fila: {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: "12px",
+  },
+  espacio: {
+    flex: 1,
   },
 });
 
@@ -52,17 +64,24 @@ interface Props {
   laboratorio: Laboratorio | null;
   onCerrar: () => void;
   onCreado?: (lab: Laboratorio) => void;
+  /** Se llama tras eliminar el laboratorio (por ejemplo, para volver a la lista). */
+  onEliminado?: () => void;
 }
 
-export function LaboratorioPanel({ abierto, laboratorio, onCerrar, onCreado }: Props) {
+export function LaboratorioPanel({ abierto, laboratorio, onCerrar, onCreado, onEliminado }: Props) {
   const estilos = useEstilos();
   const queryClient = useQueryClient();
   const notificar = useNotificar();
+  const { puede } = useSesion();
   const f = useFormulario<DatosLaboratorio>(VACIO);
   const esNuevo = laboratorio === null;
+  const [confirmarEliminar, setConfirmarEliminar] = useState(false);
+  const [textoConfirmar, setTextoConfirmar] = useState("");
 
   useEffect(() => {
     if (!abierto) return;
+    setConfirmarEliminar(false);
+    setTextoConfirmar("");
     f.reiniciar(
       laboratorio
         ? {
@@ -90,9 +109,26 @@ export function LaboratorioPanel({ abierto, laboratorio, onCerrar, onCreado }: P
     onError: f.tomarErroresDelServidor,
   });
 
+  const eliminar = useMutation({
+    mutationFn: () => eliminarLaboratorio(laboratorio!.id),
+    onSuccess: () => {
+      notificar.exito("Laboratorio eliminado", laboratorio ? `${laboratorio.codigo} · ${laboratorio.nombre}` : undefined);
+      void queryClient.invalidateQueries({ queryKey: ["laboratorios"] });
+      setConfirmarEliminar(false);
+      onCerrar();
+      onEliminado?.();
+    },
+    onError: (err) => {
+      setConfirmarEliminar(false);
+      notificar.error("No se pudo eliminar", mensajeDeError(err));
+    },
+  });
+
   const { valores: v, errores: e } = f;
+  const puedeEliminar = !esNuevo && puede("laboratorios.gestionar");
 
   return (
+    <>
     <PanelFormulario
       abierto={abierto}
       titulo={esNuevo ? "Nuevo laboratorio" : "Editar ficha"}
@@ -109,6 +145,14 @@ export function LaboratorioPanel({ abierto, laboratorio, onCerrar, onCreado }: P
             {guardar.isPending ? "Guardando…" : esNuevo ? "Crear laboratorio" : "Guardar cambios"}
           </Button>
           <Button onClick={onCerrar}>Cancelar</Button>
+          {puedeEliminar && (
+            <>
+              <span className={estilos.espacio} />
+              <Tooltip content="Eliminar laboratorio" relationship="label">
+                <Button appearance="subtle" icon={<IconoEliminar />} onClick={() => setConfirmarEliminar(true)} />
+              </Tooltip>
+            </>
+          )}
         </>
       }
     >
@@ -180,5 +224,36 @@ export function LaboratorioPanel({ abierto, laboratorio, onCerrar, onCreado }: P
         />
       )}
     </PanelFormulario>
+
+      <ConfirmarDialogo
+        abierto={confirmarEliminar}
+        titulo={`¿Eliminar ${laboratorio?.codigo} · ${laboratorio?.nombre}?`}
+        mensaje={
+          <Body1>
+            El laboratorio se retira del sistema y deja de aparecer en las listas, la pizarra y las reservas nuevas. Sus
+            horarios y reservas anteriores se conservan como historial. Para confirmar, escribe{" "}
+            <b>{PALABRA_ELIMINAR}</b>.
+          </Body1>
+        }
+        textoConfirmar="Eliminar laboratorio"
+        peligroso
+        cargando={eliminar.isPending}
+        deshabilitado={textoConfirmar.trim().toUpperCase() !== PALABRA_ELIMINAR}
+        onCancelar={() => {
+          setConfirmarEliminar(false);
+          setTextoConfirmar("");
+        }}
+        onConfirmar={() => eliminar.mutate()}
+      >
+        <Field label={`Escribe "${PALABRA_ELIMINAR}" para confirmar`}>
+          <Input
+            value={textoConfirmar}
+            placeholder={PALABRA_ELIMINAR}
+            autoComplete="off"
+            onChange={(_, d) => setTextoConfirmar(d.value)}
+          />
+        </Field>
+      </ConfirmarDialogo>
+    </>
   );
 }

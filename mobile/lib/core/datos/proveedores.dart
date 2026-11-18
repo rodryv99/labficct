@@ -46,6 +46,10 @@ final personasProvider = FutureProvider.family<List<UsuarioOpcion>, String>(
 // ── Laboratorios ──
 final laboratoriosProvider = FutureProvider<List<Laboratorio>>((ref) => _repo(ref).laboratorios());
 
+/// Preferencia por usuario: qué laboratorios muestra la pizarra y en qué orden (ids).
+/// Lista vacía = se muestran todos.
+final labsPizarraProvider = FutureProvider<List<int>>((ref) => _repo(ref).laboratoriosPizarra());
+
 final laboratorioProvider = FutureProvider.family<Laboratorio, int>((ref, id) => _repo(ref).laboratorio(id));
 
 final distribucionProvider = FutureProvider.family<Distribucion, int>((ref, id) => _repo(ref).distribucion(id));

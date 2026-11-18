@@ -23,9 +23,15 @@ CAMPOS = {
     "serie": "Número de serie",
     "estado": "Estado",
     "fecha_adquisicion": "Fecha de adquisición",
+    "responsable": "Responsable",
     "observaciones": "Observaciones",
 }
 OBLIGATORIOS = ("codigo", "descripcion", "lugar")
+
+# Títulos con los que el código viene como "el activo mismo" (formato de patrimonio de la
+# UAGRM: la columna «Activo» es el número de inventario). Si no se reconoce otra columna como
+# código y esta tiene pinta de código, es el código.
+ALIAS_CODIGO = {"activo", "activo fijo", "nro activo", "numero de activo", "n activo", "item", "bien"}
 
 # Cómo suele llamarse cada columna. Van ya "aplanados" (minúsculas, sin tildes ni signos).
 TITULOS = {
@@ -53,6 +59,10 @@ TITULOS = {
     "fecha_adquisicion": [
         "fecha de adquisicion", "fecha adquisicion", "fecha de compra", "fecha compra", "adquisicion", "fecha",
         "fecha de ingreso", "fecha ingreso", "fecha de alta", "fecha de incorporacion",
+    ],
+    "responsable": [
+        "responsable", "responsable del bien", "responsable del activo", "a cargo", "custodio", "encargado",
+        "asignado a", "funcionario",
     ],
     "observaciones": ["observaciones", "observacion", "obs", "notas", "nota", "comentarios", "comentario"],
 }  # fmt: skip
@@ -288,13 +298,14 @@ def detectar(tabla: list[list[str]], conocidos: dict, con_titulos: bool | None =
     inicio = 0 if fila_titulos is None else fila_titulos + 1
     datos = tabla[inicio : inicio + 300]
 
+    perfiles = [_perfil([f[c] for f in datos], conocidos) for c in range(columnas)]
     candidatos: list[tuple[float, int, str]] = []  # (puntos, columna, campo)
     for c in range(columnas):
         titulo = _puntos_titulo(tabla[fila_titulos][c]) if fila_titulos is not None else None
         if titulo:
             # Un título reconocido pesa más que cualquier pista del contenido.
             candidatos.append((10 + titulo[1] / 100, c, titulo[0]))
-        for campo, puntos in _puntos_contenido(_perfil([f[c] for f in datos], conocidos)).items():
+        for campo, puntos in _puntos_contenido(perfiles[c]).items():
             candidatos.append((puntos, c, campo))
 
     campos: list[str | None] = [None] * columnas
@@ -305,6 +316,24 @@ def detectar(tabla: list[list[str]], conocidos: dict, con_titulos: bool | None =
             continue
         campos[c] = campo
         usados.add(campo)
+
+    # Formato de patrimonio: si no se reconoció ningún código pero hay una columna titulada
+    # «Activo» (u otro alias) con pinta de código, esa es el código (aunque el título se
+    # pareciera a «descripción»). Libera el campo que tuviera y lo deja como código.
+    if "codigo" not in usados and fila_titulos is not None:
+        for c in range(columnas):
+            perfil = perfiles[c]
+            if (
+                aplanar(tabla[fila_titulos][c]) in ALIAS_CODIGO
+                and perfil["codigos"] >= 0.8
+                and perfil["unicos"] >= 0.9
+                and not perfil["correlativo"]
+            ):
+                if campos[c] is not None:
+                    usados.discard(campos[c])
+                campos[c] = "codigo"
+                usados.add("codigo")
+                break
 
     # El modelo suele estar justo a la derecha de la marca.
     if "marca" in usados and "modelo" not in usados:

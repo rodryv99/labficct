@@ -40,6 +40,7 @@ interface Formulario {
   modelo: string;
   serie: string;
   fecha_adquisicion: string;
+  responsable: string;
   observaciones: string;
 }
 
@@ -53,6 +54,7 @@ const vacio = (): Formulario => ({
   modelo: "",
   serie: "",
   fecha_adquisicion: "",
+  responsable: "",
   observaciones: "",
 });
 
@@ -105,6 +107,7 @@ export function ActivoPanel({ abierto, activo, onCerrar, onGuardado }: Props) {
             modelo: activo.modelo,
             serie: activo.serie,
             fecha_adquisicion: activo.fecha_adquisicion ?? "",
+            responsable: activo.responsable,
             observaciones: activo.observaciones,
           }
         : vacio(),
@@ -122,6 +125,7 @@ export function ActivoPanel({ abierto, activo, onCerrar, onGuardado }: Props) {
         modelo: v.modelo.trim(),
         serie: v.serie.trim(),
         fecha_adquisicion: v.fecha_adquisicion || null,
+        responsable: v.responsable.trim(),
         observaciones: v.observaciones.trim(),
         tipo: v.tipo,
       };
@@ -267,6 +271,15 @@ export function ActivoPanel({ abierto, activo, onCerrar, onGuardado }: Props) {
           <Input type="date" value={v.fecha_adquisicion} onChange={(_, d) => f.set("fecha_adquisicion", d.value)} />
         </Field>
       </div>
+
+      <Field label="Responsable" hint="Opcional. Custodio del bien (como en el acta de patrimonio)." {...estadoCampo(e.responsable)}>
+        <Input
+          value={v.responsable}
+          maxLength={120}
+          placeholder="Ej.: 5599-HIGUERAS HUANCA LUIS ENRIQUE"
+          onChange={(_, d) => f.set("responsable", d.value)}
+        />
+      </Field>
 
       <Field label="Observaciones" {...estadoCampo(e.observaciones)}>
         <Textarea

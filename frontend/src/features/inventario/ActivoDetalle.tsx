@@ -315,6 +315,8 @@ export function ActivoDetalle({ id, onCerrar, onEditar }: Props) {
               <Body1>{a.serie || "Sin registrar"}</Body1>
               <Caption1 className={estilos.clave}>Adquisición</Caption1>
               <Body1>{a.fecha_adquisicion ? fechaCorta(a.fecha_adquisicion) : "Sin registrar"}</Body1>
+              <Caption1 className={estilos.clave}>Responsable</Caption1>
+              <Body1>{a.responsable || "Sin registrar"}</Body1>
               {a.en_mapa.length > 0 && (
                 <>
                   <Caption1 className={estilos.clave}>En el mapa</Caption1>

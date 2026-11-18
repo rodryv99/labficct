@@ -45,10 +45,10 @@ class ObjetoPerdidoViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
-    mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
-    """7. Objetos perdidos. No hay DELETE: un registro se entrega o se anula."""
+    """7. Objetos perdidos. Un registro no se edita ni se borra: se crea y luego
+    solo se entrega o se anula (lo anulan los administradores y queda en la lista)."""
 
     serializer_class = ObjetoPerdidoSerializer
     permission_classes = [TienePermiso]
@@ -56,8 +56,6 @@ class ObjetoPerdidoViewSet(
         "list": "objetos.ver",
         "retrieve": "objetos.ver",
         "create": "objetos.registrar",
-        "update": "objetos.registrar",
-        "partial_update": "objetos.registrar",
         "entregar": "objetos.registrar",
         "foto_entrega": "objetos.ver",
         "anular": "objetos.anular",
@@ -81,11 +79,6 @@ class ObjetoPerdidoViewSet(
 
     def perform_create(self, serializer):
         serializer.instance = services.registrar(datos=serializer.validated_data, usuario=self.request.user)
-
-    def perform_update(self, serializer):
-        serializer.instance = services.editar(
-            objeto=serializer.instance, datos=serializer.validated_data, usuario=self.request.user
-        )
 
     def _detalle(self, objeto):
         return Response(self.get_serializer(self.get_queryset().get(pk=objeto.pk)).data)

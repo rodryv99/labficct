@@ -104,30 +104,57 @@ class _LaboratorioFormPageState extends ConsumerState<LaboratorioFormPage> {
 
   Future<void> _eliminar() async {
     final l = widget.inicial!;
+    // Para evitar borrar por error: además de confirmar hay que escribir "ELIMINAR".
+    const palabra = 'ELIMINAR';
+    final control = TextEditingController();
     final confirmar = await showDialog<bool>(
       context: context,
-      builder: (d) => AlertDialog(
-        title: const Text('¿Borrar laboratorio?'),
-        content: Text('Se eliminará "${l.codigo} · ${l.nombre}" con su distribución y credenciales. '
-            'No se puede deshacer.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancelar')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
-            onPressed: () => Navigator.pop(d, true),
-            child: const Text('Borrar'),
-          ),
-        ],
+      builder: (d) => StatefulBuilder(
+        builder: (d, setLocal) {
+          final coincide = control.text.trim().toUpperCase() == palabra;
+          return AlertDialog(
+            title: Text('¿Eliminar ${l.codigo} · ${l.nombre}?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'El laboratorio se retira del sistema y deja de aparecer en las listas, la pizarra y las '
+                  'reservas nuevas. Sus horarios y reservas anteriores se conservan como historial.',
+                ),
+                const SizedBox(height: 12),
+                const Text('Para confirmar, escribe ELIMINAR.'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: control,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(hintText: palabra, border: OutlineInputBorder()),
+                  onChanged: (_) => setLocal(() {}),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancelar')),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+                onPressed: coincide ? () => Navigator.pop(d, true) : null,
+                child: const Text('Eliminar laboratorio'),
+              ),
+            ],
+          );
+        },
       ),
     );
+    control.dispose();
     if (confirmar != true) return;
     final contenedor = ProviderScope.containerOf(context, listen: false);
     try {
       await ref.read(repositorioProvider).eliminarLaboratorio(l.id);
       refrescarLaboratorios(contenedor, id: l.id);
       if (!mounted) return;
-      avisar(context, 'Laboratorio borrado.');
-      // Vuelve a la lista (evita quedar en el detalle de un laboratorio borrado).
+      avisar(context, 'Laboratorio eliminado.');
+      // Vuelve a la lista (evita quedar en el detalle de un laboratorio eliminado).
       context.go('/laboratorios');
     } catch (e) {
       if (mounted) avisar(context, mensajeDeError(e), error: true);
@@ -142,7 +169,7 @@ class _LaboratorioFormPageState extends ConsumerState<LaboratorioFormPage> {
         actions: [
           if (!_esNuevo)
             IconButton(
-              tooltip: 'Borrar',
+              tooltip: 'Eliminar',
               icon: const Icon(Icons.delete_outline),
               onPressed: _guardando ? null : _eliminar,
             ),

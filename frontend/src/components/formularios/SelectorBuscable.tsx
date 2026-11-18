@@ -48,6 +48,9 @@ export function SelectorBuscable({
   return (
     <Combobox
       id={id}
+      // freeform: el cuadro acepta que se escriba libremente para filtrar; sin esto,
+      // en algunas versiones de Fluent el input queda de solo lectura.
+      freeform
       value={texto}
       placeholder={placeholder}
       disabled={deshabilitado}
@@ -70,6 +73,9 @@ export function SelectorBuscable({
       onOpenChange={(_, datos) => {
         if (!datos.open) setEscribiendo(false);
       }}
+      // Al salir del campo sin elegir, se restaura la etiqueta de lo ya seleccionado
+      // (lo escrito a medias no se queda como valor).
+      onBlur={() => setEscribiendo(false)}
     >
       {permitirVacio && (
         <Option value={VACIO} text="">

@@ -43,6 +43,17 @@ class PreferenciasSerializer(serializers.Serializer):
         }
 
 
+class PreferenciaInterfazSerializer(serializers.Serializer):
+    """Valor libre (un objeto JSON) de un ajuste de interfaz del usuario."""
+
+    valor = serializers.JSONField()
+
+    def validate_valor(self, valor):
+        if not isinstance(valor, dict):
+            raise serializers.ValidationError("El valor debe ser un objeto.")
+        return valor
+
+
 class PreferenciasRespuestaSerializer(serializers.Serializer):
     """Solo para la documentación de la API."""
 

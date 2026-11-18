@@ -65,7 +65,7 @@ const useEstilos = makeStyles({
   },
 });
 
-type Panel = { tipo: "formulario"; objeto: ObjetoPerdido | null } | { tipo: "detalle"; id: number };
+type Panel = { tipo: "formulario" } | { tipo: "detalle"; id: number };
 
 export function ObjetosPerdidosPage() {
   const estilos = useEstilos();
@@ -81,7 +81,7 @@ export function ObjetosPerdidosPage() {
 
   useAccionUrl(["nuevo", "id"], (p) => {
     if (p.id) setPanel({ tipo: "detalle", id: Number(p.id) });
-    else if (p.nuevo && registrar) setPanel({ tipo: "formulario", objeto: null });
+    else if (p.nuevo && registrar) setPanel({ tipo: "formulario" });
   });
   useEffect(() => setPagina(1), [busquedaRetrasada, estado, categoria, laboratorio]);
 
@@ -149,7 +149,7 @@ export function ObjetosPerdidosPage() {
         descripcion="Lo que se encuentra en los laboratorios. Los registros no se borran: se entregan o se anulan."
         acciones={
           registrar && (
-            <Button appearance="primary" icon={<IconoAgregar />} onClick={() => setPanel({ tipo: "formulario", objeto: null })}>
+            <Button appearance="primary" icon={<IconoAgregar />} onClick={() => setPanel({ tipo: "formulario" })}>
               Registrar objeto
             </Button>
           )
@@ -209,15 +209,10 @@ export function ObjetosPerdidosPage() {
       />
       <Paginacion pagina={pagina} total={consulta.data?.count ?? 0} tamano={TAMANO} onCambiar={setPagina} />
 
-      <ObjetoDetalle
-        id={panel?.tipo === "detalle" ? panel.id : null}
-        onCerrar={() => setPanel(null)}
-        onEditar={(objeto) => setPanel({ tipo: "formulario", objeto })}
-      />
+      <ObjetoDetalle id={panel?.tipo === "detalle" ? panel.id : null} onCerrar={() => setPanel(null)} />
       {registrar && (
         <ObjetoPanel
           abierto={panel?.tipo === "formulario"}
-          objeto={panel?.tipo === "formulario" ? panel.objeto : null}
           onCerrar={() => setPanel(null)}
           onGuardado={(o) => setPanel({ tipo: "detalle", id: o.id })}
         />

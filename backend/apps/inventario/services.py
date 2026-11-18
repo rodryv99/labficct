@@ -55,6 +55,7 @@ CAMPOS_ACTIVO = {
     "modelo": "Modelo",
     "serie": "Número de serie",
     "fecha_adquisicion": "Fecha de adquisición",
+    "responsable": "Responsable",
     "observaciones": "Observaciones",
 }
 CAMPOS_MOVIMIENTO = {"fecha": "Fecha", "motivo": "Motivo", "documento": "Documento"}

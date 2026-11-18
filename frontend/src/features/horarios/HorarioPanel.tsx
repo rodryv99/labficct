@@ -7,7 +7,6 @@ import {
   MessageBar,
   MessageBarBody,
   MessageBarTitle,
-  Select,
   Switch,
   Textarea,
   Tooltip,
@@ -348,33 +347,22 @@ export function HorarioPanel({ abierto, grupo, periodoPorDefecto, onCerrar }: Pr
 
         <div className={estilos.fila}>
           <Field label="Periodo" required {...estadoCampo(e.periodo)}>
-            <Select value={v.periodo ? String(v.periodo) : ""} onChange={(_, d) => f.set("periodo", Number(d.value))}>
-              <option value="" disabled>
-                Elige un periodo
-              </option>
-              {periodos.data?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nombre}
-                </option>
-              ))}
-            </Select>
+            <SelectorBuscable
+              opciones={(periodos.data ?? []).map((p) => ({ id: p.id, etiqueta: p.nombre }))}
+              valor={v.periodo}
+              onCambio={(id) => f.set("periodo", id)}
+              placeholder="Elige o escribe el periodo"
+            />
           </Field>
           <Field label="Laboratorio" required {...estadoCampo(e.laboratorio)}>
-            <Select
-              value={v.laboratorio ? String(v.laboratorio) : ""}
-              onChange={(_, d) => f.set("laboratorio", Number(d.value))}
-            >
-              <option value="" disabled>
-                Elige un laboratorio
-              </option>
-              {laboratorios.data
-                ?.filter((l) => l.activo || l.id === v.laboratorio)
-                .map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.codigo} · {l.nombre}
-                  </option>
-                ))}
-            </Select>
+            <SelectorBuscable
+              opciones={(laboratorios.data ?? [])
+                .filter((l) => l.activo || l.id === v.laboratorio)
+                .map((l) => ({ id: l.id, etiqueta: `${l.codigo} · ${l.nombre}`, secundaria: l.ubicacion }))}
+              valor={v.laboratorio}
+              onCambio={(id) => f.set("laboratorio", id)}
+              placeholder="Escribe el código o el nombre"
+            />
           </Field>
         </div>
 

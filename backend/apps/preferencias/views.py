@@ -10,8 +10,13 @@ from apps.planificacion.models import Docente
 from apps.planificacion.services import asegurar_ficha_docente
 
 from . import services
-from .models import OpcionPreferencia
-from .serializers import OpcionPreferenciaSerializer, PreferenciasRespuestaSerializer, PreferenciasSerializer
+from .models import OpcionPreferencia, PreferenciaInterfaz
+from .serializers import (
+    OpcionPreferenciaSerializer,
+    PreferenciaInterfazSerializer,
+    PreferenciasRespuestaSerializer,
+    PreferenciasSerializer,
+)
 
 
 class OpcionPreferenciaViewSet(AuditoriaMixin, viewsets.ModelViewSet):
@@ -111,3 +116,26 @@ class MisPreferenciasView(APIView):
         serializer.is_valid(raise_exception=True)
         services.guardar(docente=ficha, usuario=request.user, **serializer.validated_data)
         return _respuesta(ficha.pk)
+
+
+class PreferenciaInterfazView(APIView):
+    """Ajustes de interfaz del usuario con la sesión, por clave.
+
+    GET  /preferencias/interfaz/<clave>/  → {"clave": ..., "valor": {...}}
+    PUT  /preferencias/interfaz/<clave>/  con {"valor": {...}}  para guardarlo.
+    """
+
+    permission_classes = [TienePermiso]
+    permisos = {"get": "interfaz.preferencias", "put": "interfaz.preferencias"}
+
+    def get(self, request, clave):
+        preferencia = PreferenciaInterfaz.objects.filter(usuario=request.user, clave=clave).first()
+        return Response({"clave": clave, "valor": preferencia.valor if preferencia else {}})
+
+    def put(self, request, clave):
+        serializer = PreferenciaInterfazSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        preferencia, _ = PreferenciaInterfaz.objects.update_or_create(
+            usuario=request.user, clave=clave, defaults={"valor": serializer.validated_data["valor"]}
+        )
+        return Response({"clave": clave, "valor": preferencia.valor})

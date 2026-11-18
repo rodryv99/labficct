@@ -18,6 +18,7 @@ from xml.sax.saxutils import escape
 MAX_FILAS = 5000
 MAX_COLUMNAS = 40
 MAX_DESCOMPRIMIDO = 40 * 1024 * 1024  # un .xlsx malicioso puede pesar poco y abrirse enorme
+MAX_PAGINAS_PDF = 500
 
 
 class ArchivoIlegible(ValueError):
@@ -36,9 +37,57 @@ def leer_tabla(nombre: str, contenido: bytes) -> list[list[str]]:
         raise ArchivoIlegible(
             "Es un Excel antiguo (.xls). Ábrelo y guárdalo como «Libro de Excel (.xlsx)» o como CSV."
         )
+    elif contenido[:5] == b"%PDF-" or extension == "pdf":
+        filas = _leer_pdf(contenido)
     else:
         filas = _leer_csv(contenido)
     return _ordenar(filas)
+
+
+def _leer_pdf(contenido: bytes) -> list[list[str]]:
+    """Saca las tablas de un PDF (el export de patrimonio de la UAGRM viene así).
+
+    Junta las tablas de todas las páginas y descarta los encabezados que se repiten en cada
+    página. Necesita pdfplumber instalado en el servidor."""
+    try:
+        import pdfplumber
+    except ImportError as error:  # pragma: no cover - depende del servidor
+        raise ArchivoIlegible(
+            "Para leer PDF falta instalar «pdfplumber» en el servidor. Mientras tanto, "
+            "subí el archivo como Excel (.xlsx) o CSV."
+        ) from error
+
+    filas: list[list[str]] = []
+    try:
+        with pdfplumber.open(io.BytesIO(contenido)) as pdf:
+            if len(pdf.pages) > MAX_PAGINAS_PDF:
+                raise ArchivoIlegible(f"El PDF tiene más de {MAX_PAGINAS_PDF} páginas. Divídelo en varios.")
+            for pagina in pdf.pages:
+                for tabla in pagina.extract_tables() or []:
+                    for fila in tabla:
+                        filas.append([(celda or "").replace("\n", " ").strip() for celda in fila])
+                if len(filas) > MAX_FILAS + 200:
+                    break
+    except ArchivoIlegible:
+        raise
+    except Exception as error:  # pdfplumber/pdfminer lanzan de todo ante un PDF raro
+        raise ArchivoIlegible(
+            "No se pudo leer la tabla del PDF. Probá exportándolo como Excel (.xlsx) o CSV."
+        ) from error
+
+    if not filas:
+        raise ArchivoIlegible(
+            "No se encontró ninguna tabla en el PDF. Si es un escaneo (imagen), exportalo como Excel o CSV."
+        )
+    # Los PDF repiten la fila de títulos en cada página: se deja la primera y se quitan las demás.
+    encabezado = filas[0]
+    clave = encabezado[0].strip().lower() if encabezado else ""
+    limpias = [encabezado]
+    for fila in filas[1:]:
+        if fila == encabezado or (clave and fila and fila[0].strip().lower() == clave):
+            continue
+        limpias.append(fila)
+    return limpias
 
 
 def _ordenar(filas: list[list[str]]) -> list[list[str]]:

@@ -90,7 +90,7 @@ List<Pestana> pestanasDe(Usuario u) {
     if (u.puede('objetos.ver')) const Pestana('/objetos', 'Objetos', Icons.inventory_2_outlined, Icons.inventory_2),
     // Quien atiende las solicitudes las ve desde Hoy, su perfil y las notificaciones.
     if (u.puede('asistencia.solicitar') && !u.puede('asistencia.atender'))
-      const Pestana('/asistencia', 'Asistencia', Icons.support_agent_outlined, Icons.support_agent),
+      const Pestana('/asistencia', 'Asistencia técnica', Icons.support_agent_outlined, Icons.support_agent),
   ];
   // Con cinco pestañas, "Laboratorios" no entra en un teléfono angosto.
   if (lista.length < 5) return lista;

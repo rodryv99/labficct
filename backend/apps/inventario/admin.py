@@ -26,9 +26,9 @@ class MovimientoInline(admin.TabularInline):
 
 @admin.register(Activo)
 class ActivoAdmin(admin.ModelAdmin):
-    list_display = ["codigo", "descripcion", "tipo", "lugar", "estado"]
+    list_display = ["codigo", "descripcion", "tipo", "lugar", "estado", "responsable"]
     list_filter = ["estado", "tipo", "lugar"]
-    search_fields = ["codigo", "descripcion", "marca", "modelo", "serie"]
+    search_fields = ["codigo", "descripcion", "marca", "modelo", "serie", "responsable"]
     inlines = [MovimientoInline]
 
     def has_delete_permission(self, request, obj=None):

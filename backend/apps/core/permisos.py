@@ -49,9 +49,9 @@ MATRIZ: dict[str, set[str]] = {
     "preferencias.propias": {DOCENTE},  # marcar las suyas
     "preferencias.ver": {ADMIN, AUXILIAR},  # ver las de cualquier docente
     "preferencias.gestionar": {ADMIN},  # editar la lista y las de cualquier docente
-    # 10. Solicitudes de asistencia a los auxiliares
+    # 10. Solicitudes de asistencia técnica a los auxiliares
     "asistencia.ver": TODOS,  # cada quien ve las suyas; quien atiende ve todas
-    "asistencia.solicitar": {DOCENTE, ADMINISTRATIVO},
+    "asistencia.solicitar": {ADMIN, DOCENTE, ADMINISTRATIVO},
     "asistencia.atender": {ADMIN, AUXILIAR},
     # 11. Bitácora de laboratorio
     "bitacora.ver": {ADMIN, AUXILIAR},
@@ -79,6 +79,9 @@ MATRIZ: dict[str, set[str]] = {
     "respaldos.gestionar": {ADMIN},  # generar y eliminar respaldos
     # 17. Reportes y BI (tablero, reportes y constructor dinámico) — solo el Admin
     "reportes.ver": {ADMIN},
+    # 18. Preferencias de interfaz propias (p. ej. qué laboratorios muestra la pizarra
+    # y en qué orden). Cada quien guarda las suyas: lo puede hacer cualquier usuario.
+    "interfaz.preferencias": TODOS,
 }
 
 

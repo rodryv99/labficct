@@ -636,6 +636,8 @@ export interface Activo {
   estado_nombre: string;
   lugar: number;
   lugar_nombre: string;
+  /** Responsable (custodio) del bien, como en el acta de patrimonio. */
+  responsable: string;
   observaciones: string;
   creado_en: string;
   actualizado_en: string;

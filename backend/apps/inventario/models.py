@@ -81,6 +81,8 @@ class Activo(ModeloBase):
     fecha_adquisicion = models.DateField("fecha de adquisición", null=True, blank=True)
     estado = models.CharField(max_length=20, choices=EstadoActivo.choices, default=EstadoActivo.OPERATIVO)
     lugar = models.ForeignKey(Lugar, on_delete=models.PROTECT, related_name="activos")
+    # Quién custodia el bien (p. ej. el responsable que figura en el acta de patrimonio).
+    responsable = models.CharField("responsable", max_length=120, blank=True)
     observaciones = models.TextField(blank=True)
 
     class Meta:

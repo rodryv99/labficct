@@ -141,7 +141,7 @@ export function AsistenciaPage() {
 
   const botonSolicitar = solicitar && (
     <Button appearance="primary" icon={<IconoAgregar />} onClick={() => setPanel({ tipo: "nueva" })}>
-      Solicitar asistencia
+      Solicitar asistencia técnica
     </Button>
   );
 
@@ -151,11 +151,11 @@ export function AsistenciaPage() {
     <>
       <EncabezadoPagina
         seccion="Operación"
-        titulo="Asistencia"
+        titulo="Asistencia técnica"
         descripcion={
           atender
-            ? "Solicitudes de docentes y administrativos. Toma una para avisar que vas en camino."
-            : "Pide apoyo a los auxiliares; te avisamos cuando alguien vaya en camino."
+            ? "Pedidos de apoyo técnico de docentes, administrativos y jefatura. Toma uno para avisar que vas en camino."
+            : "Pide apoyo técnico a los auxiliares; te avisamos cuando alguien vaya en camino."
         }
         acciones={botonSolicitar}
       />

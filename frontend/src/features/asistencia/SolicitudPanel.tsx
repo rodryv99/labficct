@@ -76,7 +76,7 @@ export function SolicitudPanel({ abierto, onCerrar, onCreada }: Props) {
   return (
     <PanelFormulario
       abierto={abierto}
-      titulo="Solicitar asistencia"
+      titulo="Solicitar asistencia técnica"
       subtitulo="Les llega un aviso a todos los auxiliares. Te avisamos cuando alguien vaya en camino."
       onCerrar={onCerrar}
       hayCambios={f.cambiado && !enviar.isPending}

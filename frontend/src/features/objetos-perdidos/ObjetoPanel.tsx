@@ -16,12 +16,12 @@ import { useNotificar } from "../../components/feedback/notificaciones";
 import { CampoImagen } from "../../components/formularios/CampoImagen";
 import { PanelFormulario } from "../../components/formularios/PanelFormulario";
 import { CATEGORIAS_OBJETO } from "../../lib/constantes";
-import { aInputLocal, ahoraLocalInput } from "../../lib/fechas";
+import { ahoraLocalInput } from "../../lib/fechas";
 import { estadoCampo, useFormulario } from "../../lib/useFormulario";
 import { listarLaboratoriosTodos } from "../laboratorios/api";
 import { PanelDictado } from "../dictado/PanelDictado";
 import { type ResultadoObjeto, interpretarDictadoObjeto } from "./dictadoObjeto";
-import { type DatosObjeto, editarObjeto, registrarObjeto } from "./api";
+import { type DatosObjeto, registrarObjeto } from "./api";
 
 const useEstilos = makeStyles({
   fila: {
@@ -45,17 +45,16 @@ const vacio = (): DatosObjeto => ({
 
 interface Props {
   abierto: boolean;
-  objeto: ObjetoPerdido | null;
   onCerrar: () => void;
   onGuardado: (objeto: ObjetoPerdido) => void;
 }
 
-export function ObjetoPanel({ abierto, objeto, onCerrar, onGuardado }: Props) {
+/** Alta de un objeto perdido. Una vez guardado no se edita: solo se entrega o se anula. */
+export function ObjetoPanel({ abierto, onCerrar, onGuardado }: Props) {
   const estilos = useEstilos();
   const queryClient = useQueryClient();
   const notificar = useNotificar();
   const f = useFormulario<DatosObjeto>(vacio());
-  const esNuevo = objeto === null;
 
   const laboratorios = useQuery({ queryKey: ["laboratorios", "todos"], queryFn: listarLaboratoriosTodos, enabled: abierto });
 
@@ -74,28 +73,14 @@ export function ObjetoPanel({ abierto, objeto, onCerrar, onGuardado }: Props) {
 
   useEffect(() => {
     if (!abierto) return;
-    f.reiniciar(
-      objeto
-        ? {
-            descripcion: objeto.descripcion,
-            categoria: objeto.categoria,
-            caracteristicas: objeto.caracteristicas,
-            laboratorio: objeto.laboratorio,
-            lugar: objeto.lugar,
-            fecha_hallazgo: aInputLocal(objeto.fecha_hallazgo),
-            encontrado_por: objeto.encontrado_por,
-            foto: null,
-            quitar_foto: false,
-          }
-        : vacio(),
-    );
+    f.reiniciar(vacio());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [abierto, objeto]);
+  }, [abierto]);
 
   const guardar = useMutation({
-    mutationFn: () => (esNuevo ? registrarObjeto(f.valores) : editarObjeto(objeto.id, f.valores)),
+    mutationFn: () => registrarObjeto(f.valores),
     onSuccess: (o) => {
-      notificar.exito(esNuevo ? `Registrado como ${o.codigo}` : "Cambios guardados", o.descripcion);
+      notificar.exito(`Registrado como ${o.codigo}`, o.descripcion);
       void queryClient.invalidateQueries({ queryKey: ["objetos"] });
       onGuardado(o);
     },
@@ -108,14 +93,14 @@ export function ObjetoPanel({ abierto, objeto, onCerrar, onGuardado }: Props) {
   return (
     <PanelFormulario
       abierto={abierto}
-      titulo={esNuevo ? "Registrar objeto perdido" : `Editar ${objeto.codigo}`}
-      subtitulo="Una foto ayuda mucho a que su dueño lo reconozca."
+      titulo="Registrar objeto perdido"
+      subtitulo="Una foto ayuda mucho a que su dueño lo reconozca. Después de guardar no se podrá editar."
       onCerrar={onCerrar}
       hayCambios={f.cambiado && !guardar.isPending}
       pie={
         <>
           <Button appearance="primary" disabled={!completo || guardar.isPending} onClick={() => guardar.mutate()}>
-            {guardar.isPending ? "Guardando…" : esNuevo ? "Registrar" : "Guardar cambios"}
+            {guardar.isPending ? "Guardando…" : "Registrar"}
           </Button>
           <Button onClick={onCerrar}>Cancelar</Button>
         </>
@@ -127,28 +112,26 @@ export function ObjetoPanel({ abierto, objeto, onCerrar, onGuardado }: Props) {
         </MessageBar>
       )}
 
-      {esNuevo && (
-        <PanelDictado<ResultadoObjeto>
-          etiqueta="Dicta o escribe el objeto en una frase"
-          ejemplo="Ej.: Un celular negro con funda roja, encontrado en el laboratorio 41 hoy, lo entregó Juan."
-          placeholder="Qué objeto es, cómo es, dónde y cuándo se encontró"
-          sustantivo="un objeto perdido"
-          abierto={abierto}
-          interpretar={(texto) =>
-            interpretarDictadoObjeto(texto, {
-              hoy: new Date(),
-              laboratorios: (laboratorios.data ?? [])
-                .filter((l) => l.activo)
-                .map((l) => ({ id: l.id, codigo: l.codigo, nombre: l.nombre })),
-            })
-          }
-          onAplicar={aplicarDictado}
-        />
-      )}
+      <PanelDictado<ResultadoObjeto>
+        etiqueta="Dicta o escribe el objeto en una frase"
+        ejemplo="Ej.: Un celular negro con funda roja, encontrado en el laboratorio 41 hoy, lo entregó Juan."
+        placeholder="Qué objeto es, cómo es, dónde y cuándo se encontró"
+        sustantivo="un objeto perdido"
+        abierto={abierto}
+        interpretar={(texto) =>
+          interpretarDictadoObjeto(texto, {
+            hoy: new Date(),
+            laboratorios: (laboratorios.data ?? [])
+              .filter((l) => l.activo)
+              .map((l) => ({ id: l.id, codigo: l.codigo, nombre: l.nombre })),
+          })
+        }
+        onAplicar={aplicarDictado}
+      />
 
       <Field label="Foto">
         <CampoImagen
-          actual={objeto?.foto ?? null}
+          actual={null}
           archivo={v.foto ?? null}
           quitada={Boolean(v.quitar_foto)}
           onArchivo={(archivo) => {

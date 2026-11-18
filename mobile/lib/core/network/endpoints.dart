@@ -74,6 +74,8 @@ abstract final class Endpoints {
   static const misPreferencias = '/preferencias/mias/';
   static const preferenciasDocentes = '/preferencias/docentes/';
   static String preferenciasDocente(int id) => '/preferencias/docentes/$id/';
+  /// Ajustes de interfaz propios del usuario (p. ej. los laboratorios de la pizarra).
+  static String preferenciaInterfaz(String clave) => '/preferencias/interfaz/$clave/';
 
   // Solicitudes de asistencia
   static const asistencia = '/asistencia/';

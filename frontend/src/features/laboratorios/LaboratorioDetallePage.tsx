@@ -177,7 +177,12 @@ export function LaboratorioDetallePage() {
       {pestana === "software" && <SoftwareTab laboratorio={lab} />}
       {pestana === "bitacora" && puede("bitacora.ver") && <ListaBitacora laboratorioId={lab.id} />}
 
-      <LaboratorioPanel abierto={editando} laboratorio={lab} onCerrar={() => setEditando(false)} />
+      <LaboratorioPanel
+        abierto={editando}
+        laboratorio={lab}
+        onCerrar={() => setEditando(false)}
+        onEliminado={() => navegar("/laboratorios")}
+      />
     </>
   );
 }

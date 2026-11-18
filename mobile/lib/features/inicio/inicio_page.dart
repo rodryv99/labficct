@@ -10,6 +10,7 @@ import '../../shared/widgets/comunes.dart';
 import '../../shared/widgets/evento.dart';
 import '../notificaciones/notificaciones_page.dart';
 import '../perfil/perfil_sheet.dart';
+import 'hoja_laboratorios_pizarra.dart';
 
 enum _Vista { hora, laboratorio }
 
@@ -95,6 +96,12 @@ class _InicioPageState extends ConsumerState<InicioPage> {
         actions: [
           if (!_esHoy)
             TextButton(onPressed: () => _irA(DateTime.now()), child: const Text('Hoy')),
+          if (_vista == _Vista.laboratorio)
+            IconButton(
+              tooltip: 'Elegir laboratorios',
+              onPressed: () => mostrarHojaLaboratoriosPizarra(context),
+              icon: const Icon(Icons.tune),
+            ),
           IconButton(
             tooltip: 'Elegir fecha',
             onPressed: _elegirFecha,
@@ -197,8 +204,8 @@ class _AvisoSolicitudes extends StatelessWidget {
                 Expanded(
                   child: Text(
                     cantidad == 1
-                        ? '1 solicitud de asistencia abierta'
-                        : '$cantidad solicitudes de asistencia abiertas',
+                        ? '1 solicitud de asistencia técnica abierta'
+                        : '$cantidad solicitudes de asistencia técnica abiertas',
                     style: tema.textTheme.titleSmall?.copyWith(color: frente, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -411,14 +418,28 @@ class _PorLaboratorio extends ConsumerWidget {
     final tema = Theme.of(context);
     final esquema = tema.colorScheme;
     final labs = ref.watch(laboratoriosProvider).value;
+    // Preferencia del usuario: qué laboratorios muestra y en qué orden. Vacío = todos.
+    final orden = ref.watch(labsPizarraProvider).value ?? const <int>[];
 
     final porLab = <String, List<EventoAgenda>>{};
     for (final e in eventos) {
       porLab.putIfAbsent(e.laboratorioCodigo, () => []).add(e);
     }
-    final codigos = labs == null
-        ? (porLab.keys.toList()..sort())
-        : [for (final l in labs.where((l) => l.activo)) l.codigo];
+    final List<String> codigos;
+    if (labs == null) {
+      codigos = porLab.keys.toList()..sort();
+    } else {
+      final activos = labs.where((l) => l.activo).toList();
+      if (orden.isEmpty) {
+        codigos = [for (final l in activos) l.codigo];
+      } else {
+        final porId = {for (final l in activos) l.id: l};
+        codigos = [
+          for (final id in orden)
+            if (porId[id] != null) porId[id]!.codigo,
+        ];
+      }
+    }
     final idPorCodigo = {for (final l in labs ?? const <Laboratorio>[]) l.codigo: l.id};
 
     return ListView.separated(

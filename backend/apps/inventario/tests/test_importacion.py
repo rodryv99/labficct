@@ -90,6 +90,10 @@ def test_segunda_importacion_omite_los_que_ya_estan(cliente, admin_lab, lab, dep
     assert r.data["existentes"] == 3
     assert r.data["creados"] == 0
     assert Activo.objects.count() == 3
+    # Se informa cuáles se omitieron y por qué.
+    assert r.data["omitidos_total"] == 3
+    assert {o["codigo"] for o in r.data["omitidos"]} == {"A-100", "A-101", "A-102"}
+    assert all(o["motivo"] == "ya estaba en el inventario" for o in r.data["omitidos"])
 
 
 def test_filas_con_error_se_informan_y_no_frenan_al_resto(cliente, admin_lab, deposito):
@@ -106,10 +110,41 @@ A-4;Mesa correcta;Depósito
     )
     assert r.status_code == 200, r.data
     assert r.data["creados"] == 2  # A-1 y A-4
-    # sin código, código inválido, código repetido y descripción vacía.
-    assert r.data["con_error"] == 4
-    assert len(r.data["errores"]) == 4
+    # Errores: sin código, código inválido y descripción vacía.
+    assert r.data["con_error"] == 3
+    assert len(r.data["errores"]) == 3
+    # El código repetido en el archivo no es error: se omite y se informa.
+    assert r.data["repetidos"] == 1
+    assert any(o["codigo"] == "A-1" and o["motivo"] == "repetido en el archivo" for o in r.data["omitidos"])
     assert {a.codigo for a in Activo.objects.all()} == {"A-1", "A-4"}
+
+
+def test_formato_patrimonio_activo_es_codigo_y_mapea_responsable(cliente, admin_lab, lab, deposito):
+    # Formato UAGRM: la columna «Activo» es el código, «Grupo» el tipo, «Ubicación» el lugar,
+    # y hay una columna «Responsable». No trae descripción: el grupo hace de descripción.
+    planilla = (
+        "Activo;Grupo;Estado;Fecha;Ubicación;Responsable\n"
+        "U-100;SILLA;BUENO;23/10/2025;LAB-41;5599-HIGUERAS HUANCA\n"
+        "U-101;MESA;REGULAR;22/10/2025;Depósito;5599-HIGUERAS HUANCA\n"
+    )
+    c = cliente(admin_lab)
+    # El preview reconoce «Activo» como código y no reclama la descripción.
+    prev = c.post(IMPORTAR, {"archivo": csv_subido(planilla), "confirmar": "false"}, format="multipart")
+    assert prev.status_code == 200, prev.data
+    assert not prev.data["faltan"]
+    campos = {col["titulo"]: col["campo"] for col in prev.data["columnas"]}
+    assert campos["Activo"] == "codigo"
+    assert campos["Responsable"] == "responsable"
+
+    r = c.post(IMPORTAR, {"archivo": csv_subido(planilla), "confirmar": "true"}, format="multipart")
+    assert r.status_code == 200, r.data
+    assert r.data["creados"] == 2
+    a = Activo.objects.get(codigo="U-100")
+    assert a.descripcion == "SILLA"  # el grupo sirve de descripción
+    assert a.tipo.nombre == "SILLA"
+    assert a.estado == "operativo"  # "BUENO"
+    assert a.responsable == "5599-HIGUERAS HUANCA"
+    assert a.lugar == Lugar.objects.get(laboratorio=lab)  # "LAB-41"
 
 
 def test_sin_columna_lugar_pide_una_y_el_lugar_por_defecto_la_resuelve(cliente, admin_lab, deposito):

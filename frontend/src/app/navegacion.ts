@@ -40,7 +40,13 @@ export const NAVEGACION: GrupoNavegacion[] = [
       { ruta: "/pizarra", etiqueta: "Pizarra", icono: IconoPizarra, permiso: "pizarra.ver", claves: "dashboard calendario hoy" },
       { ruta: "/tareas", etiqueta: "Tareas", icono: IconoTareas, permiso: "tareas.ver", claves: "kanban pendientes progreso pizarrón" },
       { ruta: "/reservas", etiqueta: "Reservas", icono: IconoReservas, permiso: "reservas.ver", claves: "eventos cursos" },
-      { ruta: "/asistencia", etiqueta: "Asistencia", icono: IconoAsistencia, permiso: "asistencia.ver", claves: "ayuda soporte apoyo" },
+      {
+        ruta: "/asistencia",
+        etiqueta: "Asistencia técnica",
+        icono: IconoAsistencia,
+        permiso: "asistencia.ver",
+        claves: "ayuda soporte apoyo tecnica auxiliares",
+      },
       {
         ruta: "/objetos-perdidos",
         etiqueta: "Objetos perdidos",

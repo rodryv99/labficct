@@ -14,7 +14,7 @@ import { useState } from "react";
 
 import { mensajeDeError } from "../../api/errores";
 import { ENDPOINTS } from "../../api/endpoints";
-import type { FotoEntrega, ObjetoPerdido } from "../../api/tipos";
+import type { FotoEntrega } from "../../api/tipos";
 import { useSesion } from "../../app/sesion";
 import { Codigo, EtiquetaEstado } from "../../components/datos/Etiquetas";
 import { VisorImagen } from "../../components/datos/VisorImagen";
@@ -22,7 +22,7 @@ import { ConfirmarDialogo } from "../../components/feedback/ConfirmarDialogo";
 import { EstadoError } from "../../components/feedback/Estados";
 import { useNotificar } from "../../components/feedback/notificaciones";
 import { PanelFormulario } from "../../components/formularios/PanelFormulario";
-import { IconoAcercar, IconoCandado, IconoEditar } from "../../components/iconos/iconos";
+import { IconoAcercar, IconoCandado } from "../../components/iconos/iconos";
 import { fechaHora } from "../../lib/fechas";
 import { useImagenProtegida } from "../../lib/useImagenProtegida";
 import { type DatosEntrega, anularObjeto, entregarObjeto, obtenerObjeto } from "./api";
@@ -213,10 +213,9 @@ function FotoDeEntrega({
 interface Props {
   id: number | null;
   onCerrar: () => void;
-  onEditar: (objeto: ObjetoPerdido) => void;
 }
 
-export function ObjetoDetalle({ id, onCerrar, onEditar }: Props) {
+export function ObjetoDetalle({ id, onCerrar }: Props) {
   const estilos = useEstilos();
   const notificar = useNotificar();
   const queryClient = useQueryClient();
@@ -265,9 +264,6 @@ export function ObjetoDetalle({ id, onCerrar, onEditar }: Props) {
             <>
               <Button appearance="primary" onClick={() => setDialogo("entregar")}>
                 Entregar a su dueño
-              </Button>
-              <Button icon={<IconoEditar />} onClick={() => onEditar(o)}>
-                Editar
               </Button>
               {puede("objetos.anular") && (
                 <Button appearance="subtle" onClick={() => setDialogo("anular")}>

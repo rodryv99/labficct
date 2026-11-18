@@ -125,6 +125,7 @@ export interface DatosActivo {
   modelo: string;
   serie: string;
   fecha_adquisicion: string | null;
+  responsable: string;
   observaciones: string;
 }
 
@@ -252,6 +253,7 @@ export const CAMPOS_IMPORTABLES: { valor: string; etiqueta: string }[] = [
   { valor: "serie", etiqueta: "Número de serie" },
   { valor: "estado", etiqueta: "Estado" },
   { valor: "fecha_adquisicion", etiqueta: "Fecha de adquisición" },
+  { valor: "responsable", etiqueta: "Responsable" },
   { valor: "observaciones", etiqueta: "Observaciones" },
 ];
 export const ETIQUETA_CAMPO: Record<string, string> = Object.fromEntries(
@@ -279,7 +281,15 @@ export interface EjemploActivo {
   serie: string;
   estado: string;
   fecha_adquisicion: string;
+  responsable: string;
   observaciones: string;
+}
+
+/** Un activo que no se importó por tener el código repetido. */
+export interface OmitidoImportacion {
+  codigo: string;
+  /** "ya estaba en el inventario" o "repetido en el archivo". */
+  motivo: string;
 }
 
 export interface ResultadoImportacion {
@@ -291,6 +301,12 @@ export interface ResultadoImportacion {
   validas: number;
   /** Cuántas ya están en el sistema (se omiten). */
   existentes: number;
+  /** Cuántas venían repetidas dentro del mismo archivo (se omiten). */
+  repetidos: number;
+  /** Total de omitidos por código repetido (existentes + repetidos). */
+  omitidos_total: number;
+  /** Los códigos omitidos, con el motivo (hasta los primeros 100). */
+  omitidos: OmitidoImportacion[];
   con_error: number;
   errores: string[];
   avisos: string[];
@@ -318,7 +334,11 @@ export async function importarActivos(archivo: File, opciones: OpcionesImportar)
   if (opciones.lugar_por_defecto != null) {
     form.append("lugar_por_defecto", String(opciones.lugar_por_defecto));
   }
-  const { data } = await api.post<ResultadoImportacion>(ENDPOINTS.inventario.importar, form);
+  // Leer un PDF de patrimonio (cientos de páginas) puede tardar bastante en el
+  // servidor; subimos el timeout solo para esta operación para no cortar la espera.
+  const { data } = await api.post<ResultadoImportacion>(ENDPOINTS.inventario.importar, form, {
+    timeout: 180_000,
+  });
   return data;
 }
 

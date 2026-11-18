@@ -9,7 +9,14 @@ from apps.core.mixins import AuditoriaMixin
 from apps.core.permissions import TienePermiso, permisos_crud
 
 from . import services
-from .models import CredencialLaboratorio, ElementoLaboratorio, Laboratorio, Software, TipoElemento
+from .models import (
+    CredencialLaboratorio,
+    ElementoLaboratorio,
+    EstadoLaboratorio,
+    Laboratorio,
+    Software,
+    TipoElemento,
+)
 from .serializers import (
     CeldaSerializer,
     CredencialSerializer,
@@ -76,10 +83,22 @@ class LaboratorioViewSet(AuditoriaMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         elementos = ElementoLaboratorio.objects.only("id", "laboratorio_id", "fila", "columna", "tipo_id")
-        return (
-            Laboratorio.objects.annotate(total_elementos=Count("elementos", distinct=True))
-            .prefetch_related(Prefetch("elementos", queryset=elementos), "software")
+        qs = Laboratorio.objects.annotate(total_elementos=Count("elementos", distinct=True)).prefetch_related(
+            Prefetch("elementos", queryset=elementos), "software"
         )
+        # Un laboratorio eliminado queda inactivo y no se muestra en los listados,
+        # salvo que se pida explícitamente con ?activo=false.
+        if self.action == "list" and "activo" not in self.request.query_params:
+            qs = qs.filter(activo=True)
+        return qs
+
+    def perform_destroy(self, instance):
+        # No se borra de la base (lo protegen horarios, reservas e inventario): se
+        # marca como eliminado (inactivo y cerrado) y desaparece de los listados.
+        instance.activo = False
+        instance.estado = EstadoLaboratorio.CERRADO
+        instance.actualizado_por = self.request.user
+        instance.save(update_fields=["activo", "estado", "actualizado_por", "actualizado_en"])
 
     @extend_schema(methods=["GET"], responses=DistribucionSerializer)
     @extend_schema(methods=["PUT"], request=DistribucionSerializer, responses=DistribucionSerializer)

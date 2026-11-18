@@ -93,6 +93,8 @@ export const ENDPOINTS = {
     mias: "/preferencias/mias/",
     docentes: "/preferencias/docentes/",
     docente: (id: Id) => `/preferencias/docentes/${id}/`,
+    // Ajustes de interfaz propios (p. ej. los laboratorios que muestra la pizarra).
+    interfaz: (clave: string) => `/preferencias/interfaz/${clave}/`,
   },
   asistencia: {
     lista: "/asistencia/",

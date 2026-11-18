@@ -15,6 +15,7 @@ from . import deteccion, hojas
 from .models import Activo, EstadoActivo, Lugar, MovimientoActivo, TipoActivo, TipoLugar, TipoMovimiento
 
 MAX_ERRORES = 30
+MAX_OMITIDOS = 100
 
 # ── Importar ────────────────────────────────────────────
 
@@ -89,13 +90,20 @@ def analizar(
         "total": len(datos),
         "validas": 0,
         "existentes": 0,
+        "repetidos": 0,
+        "omitidos": [],
+        "omitidos_total": 0,
         "con_error": 0,
         "errores": [],
         "avisos": [],
         "faltan": [
             deteccion.CAMPOS[c]
             for c in deteccion.OBLIGATORIOS
-            if c not in donde and not (c == "lugar" and lugar_por_defecto is not None)
+            if c not in donde
+            and not (c == "lugar" and lugar_por_defecto is not None)
+            # La descripción no es obligatoria si hay columna de tipo: el tipo sirve de
+            # descripción (así entra el formato de patrimonio, que solo trae «Grupo»).
+            and not (c == "descripcion" and "tipo" in donde)
         ],
         "ejemplo": [],
         "creados": 0,
@@ -112,6 +120,11 @@ def analizar(
         resultado["con_error"] += 1
         if len(resultado["errores"]) < MAX_ERRORES:
             resultado["errores"].append(f"Fila {numero}{f' ({codigo})' if codigo else ''}: {mensaje}")
+
+    def omitido(codigo, motivo):
+        resultado["omitidos_total"] += 1
+        if len(resultado["omitidos"]) < MAX_OMITIDOS:
+            resultado["omitidos"].append({"codigo": codigo, "motivo": motivo})
 
     codigos = {deteccion.limpiar_codigo(valor(f, "codigo")) for f in datos}
     existentes = {
@@ -132,11 +145,13 @@ def analizar(
             error(numero, codigo[:30], "el código solo puede llevar letras, números y guiones (hasta 30).")
             continue
         if codigo in vistos:
-            error(numero, codigo, "el código está repetido en el archivo.")
+            resultado["repetidos"] += 1
+            omitido(codigo, "repetido en el archivo")
             continue
         vistos.add(codigo)
         if codigo in existentes:
             resultado["existentes"] += 1
+            omitido(codigo, "ya estaba en el inventario")
             continue
 
         texto_tipo = valor(fila, "tipo")
@@ -192,6 +207,7 @@ def analizar(
                 "serie": valor(fila, "serie")[:80],
                 "estado": estado or EstadoActivo.OPERATIVO,
                 "fecha_adquisicion": fecha,
+                "responsable": " ".join(valor(fila, "responsable").split())[:120],
                 "observaciones": valor(fila, "observaciones"),
             }
         )
@@ -212,6 +228,7 @@ def analizar(
                 "serie": f["serie"],
                 "estado": etiquetas_estado[f["estado"]],
                 "fecha_adquisicion": hojas.fecha_corta(f["fecha_adquisicion"]),
+                "responsable": f["responsable"],
                 "observaciones": f["observaciones"],
             }
         )
@@ -219,6 +236,15 @@ def analizar(
     avisos = resultado["avisos"]
     if resultado["con_error"] > MAX_ERRORES:
         avisos.append(f"Se muestran los primeros {MAX_ERRORES} errores de {resultado['con_error']}.")
+    if resultado["omitidos_total"]:
+        partes = []
+        if resultado["existentes"]:
+            partes.append(f"{resultado['existentes']} ya estaban en el inventario")
+        if resultado["repetidos"]:
+            partes.append(f"{resultado['repetidos']} repetidos en el archivo")
+        avisos.append(f"Se omitieron {resultado['omitidos_total']} por código repetido ({', '.join(partes)}).")
+    if resultado["omitidos_total"] > MAX_OMITIDOS:
+        avisos.append(f"Se listan los primeros {MAX_OMITIDOS} códigos omitidos de {resultado['omitidos_total']}.")
     for nuevos, uno, varios in (
         (lugares_nuevos, "Se creará 1 lugar nuevo", "Se crearán {} lugares nuevos"),
         (tipos_nuevos, "Se creará 1 tipo nuevo", "Se crearán {} tipos nuevos"),
@@ -281,6 +307,7 @@ def importar(*, usuario, confirmar: bool, **opciones) -> dict:
                 serie=f["serie"],
                 estado=f["estado"],
                 fecha_adquisicion=f["fecha_adquisicion"],
+                responsable=f["responsable"],
                 observaciones=f["observaciones"],
                 **quien,
             )
@@ -320,6 +347,7 @@ ENCABEZADOS = [
     "Estado",
     "Lugar",
     "Fecha de adquisición",
+    "Responsable",
     "Observaciones",
 ]
 FORMATOS = {
@@ -344,6 +372,7 @@ def exportar(activos, formato: str, filtros: str = "") -> tuple[bytes, str, str]
             a.get_estado_display(),
             a.lugar.nombre,
             hojas.fecha_corta(a.fecha_adquisicion),
+            a.responsable,
             a.observaciones,
         ]
         for a in activos.select_related("tipo", "lugar")

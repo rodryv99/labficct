@@ -190,6 +190,7 @@ class ActivoSerializer(serializers.ModelSerializer):
             "estado_nombre",
             "lugar",
             "lugar_nombre",
+            "responsable",
             "observaciones",
             "creado_en",
             "actualizado_en",
@@ -218,7 +219,7 @@ class ActivoSerializer(serializers.ModelSerializer):
         return valor
 
     def validate(self, attrs):
-        for campo in ("marca", "modelo", "serie", "observaciones"):
+        for campo in ("marca", "modelo", "serie", "responsable", "observaciones"):
             if campo in attrs:
                 attrs[campo] = attrs[campo].strip()
         if self.instance is None:
@@ -444,11 +445,11 @@ class CerrarSerializer(serializers.Serializer):
 
 # ── Importar ──
 
-MAX_ARCHIVO = 5 * 1024 * 1024  # 5 MB
+MAX_ARCHIVO = 15 * 1024 * 1024  # 15 MB (un PDF de patrimonio pesa más que una planilla)
 
 
 class ImportarActivosSerializer(serializers.Serializer):
-    """Sube una planilla (Excel o CSV). Primero se analiza (sin guardar); con `confirmar` se crea."""
+    """Sube una planilla (Excel, CSV o PDF). Primero se analiza (sin guardar); con `confirmar` se crea."""
 
     archivo = serializers.FileField()
     confirmar = serializers.BooleanField(default=False)
@@ -464,10 +465,10 @@ class ImportarActivosSerializer(serializers.Serializer):
     def validate_archivo(self, archivo):
         if archivo.size > MAX_ARCHIVO:
             raise serializers.ValidationError(
-                "El archivo supera los 5 MB. Quítale columnas de adorno o divídelo."
+                "El archivo supera los 15 MB. Quítale columnas de adorno o divídelo."
             )
-        if not archivo.name.lower().endswith((".xlsx", ".xlsm", ".csv", ".txt")):
-            raise serializers.ValidationError("Sube un Excel (.xlsx) o un CSV.")
+        if not archivo.name.lower().endswith((".xlsx", ".xlsm", ".csv", ".txt", ".pdf")):
+            raise serializers.ValidationError("Sube un Excel (.xlsx), un CSV o un PDF.")
         return archivo
 
     def validate_mapeo(self, valor):

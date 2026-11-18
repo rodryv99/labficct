@@ -88,7 +88,7 @@ class _SolicitudNuevaPageState extends ConsumerState<SolicitudNuevaPage> {
         _errores['categoria'] ?? (_intentado && _categoria == null ? 'Elige qué tipo de problema es.' : null);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pedir asistencia')),
+      appBar: AppBar(title: const Text('Pedir asistencia técnica')),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),

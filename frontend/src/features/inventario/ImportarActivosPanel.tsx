@@ -131,7 +131,7 @@ const useEstilos = makeStyles({
   },
 });
 
-const ACEPTA = ".xlsx,.xlsm,.csv,.txt";
+const ACEPTA = ".xlsx,.xlsm,.csv,.txt,.pdf";
 
 interface Props {
   abierto: boolean;
@@ -200,7 +200,7 @@ export function ImportarActivosPanel({ abierto, onCerrar }: Props) {
       void queryClient.invalidateQueries({ queryKey: ["inventario"] });
       notificar.exito(
         `${res.creados} ${res.creados === 1 ? "activo importado" : "activos importados"}`,
-        res.existentes ? `${res.existentes} ya estaban y se omitieron.` : undefined,
+        res.omitidos_total ? `${res.omitidos_total} repetidos se omitieron.` : undefined,
       );
     },
     onError: (e) => notificar.error("No se pudo importar", mensajeDeError(e)),
@@ -251,7 +251,7 @@ export function ImportarActivosPanel({ abierto, onCerrar }: Props) {
       abierto={abierto}
       tamano="large"
       titulo="Importar activos"
-      subtitulo="Sube un Excel o un CSV. Reconozco las columnas por su título o por lo que contienen; revisa y confirma."
+      subtitulo="Sube un Excel, un CSV o un PDF (incluido el formato de patrimonio de la UAGRM). Reconozco las columnas por su título o por lo que contienen; revisa y confirma."
       onCerrar={cerrar}
       hayCambios={Boolean(archivo) && !hecho && !confirmar.isPending}
       pie={
@@ -298,7 +298,7 @@ export function ImportarActivosPanel({ abierto, onCerrar }: Props) {
           </Body1Strong>
           <Body1>
             {[
-              hecho.existentes ? `${hecho.existentes} ya estaban (se omitieron)` : "",
+              hecho.omitidos_total ? `${hecho.omitidos_total} repetidos (se omitieron)` : "",
               hecho.con_error ? `${hecho.con_error} con error (no se importaron)` : "",
             ]
               .filter(Boolean)
@@ -320,14 +320,14 @@ export function ImportarActivosPanel({ abierto, onCerrar }: Props) {
           }}
         >
           <IconoImportar style={{ fontSize: "32px", color: tokens.colorNeutralForeground3 }} />
-          <Body1Strong>Arrastra aquí tu planilla</Body1Strong>
-          <Caption1>Excel (.xlsx) o CSV. Hasta 5000 filas.</Caption1>
+          <Body1Strong>Arrastra aquí tu planilla o PDF</Body1Strong>
+          <Caption1>Excel (.xlsx), CSV o PDF. Hasta 5000 filas.</Caption1>
           <Button appearance="primary" onClick={() => entrada.current?.click()}>
             Elegir archivo
           </Button>
           <Caption1>
-            Pon una fila de títulos como «Código», «Descripción», «Ubicación», «Tipo», «Marca», «Estado». Los que no
-            existan (lugares y tipos) se crean solos.
+            Pon una fila de títulos como «Código» (o «Activo»), «Descripción», «Ubicación», «Tipo» (o «Grupo»),
+            «Estado» o «Responsable». Los lugares y tipos que no existan se crean solos.
           </Caption1>
         </div>
       ) : (
@@ -454,6 +454,27 @@ export function ImportarActivosPanel({ abierto, onCerrar }: Props) {
                         <li key={e}>{e}</li>
                       ))}
                     </ul>
+                  </MessageBarBody>
+                </MessageBar>
+              )}
+
+              {preview.omitidos.length > 0 && (
+                <MessageBar intent="info">
+                  <MessageBarBody>
+                    <MessageBarTitle>
+                      {preview.omitidos_total}{" "}
+                      {preview.omitidos_total === 1 ? "código repetido (se omite)" : "códigos repetidos (se omiten)"}
+                    </MessageBarTitle>
+                    <ul className={estilos.lista}>
+                      {preview.omitidos.map((o, i) => (
+                        <li key={`${o.codigo}-${i}`}>
+                          {o.codigo} — {o.motivo}
+                        </li>
+                      ))}
+                    </ul>
+                    {preview.omitidos_total > preview.omitidos.length && (
+                      <Caption1>…y {preview.omitidos_total - preview.omitidos.length} más.</Caption1>
+                    )}
                   </MessageBarBody>
                 </MessageBar>
               )}

@@ -48,11 +48,6 @@ export async function registrarObjeto(datos: DatosObjeto) {
   return data;
 }
 
-export async function editarObjeto(id: number, datos: DatosObjeto) {
-  const { data } = await api.patch<ObjetoPerdido>(ENDPOINTS.objetosPerdidos.detalle(id), cuerpo(datos), CON_ARCHIVOS);
-  return data;
-}
-
 export interface DatosEntrega {
   entregado_a: string;
   entregado_ci: string;
