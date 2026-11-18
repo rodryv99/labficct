@@ -101,6 +101,11 @@ DestinoNotificacion? destinoDeNotificacion(Notificacion n, Usuario u) {
   final tarea = n.datoEntero('tarea_id');
   if (tarea != null && u.puede('tareas.ver')) return (ruta: '/tarea/$tarea', pestana: false);
 
+  // Recordatorio de turno: lleva a la pantalla para marcar la entrada.
+  if (n.datoTexto('turno').isNotEmpty && u.puede('marcaciones.marcar')) {
+    return (ruta: '/mi-asistencia', pestana: false);
+  }
+
   // Alistar o cerrar un aula: la pizarra del día.
   if (n.datoTexto('evento').isNotEmpty && pestanas.contains('/hoy')) return (ruta: hoy, pestana: true);
 

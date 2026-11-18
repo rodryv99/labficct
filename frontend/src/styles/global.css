@@ -1,3 +1,21 @@
+/* Tipografías de la identidad «Plano de laboratorio». Si no hay internet, se
+   usan las del sistema (Segoe UI / Arial Narrow) y todo sigue funcionando. */
+@import url("https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap");
+
+/* Colores de identidad que cambian con el tema (los pone TemaProvider en <html>). */
+:root {
+  --lab-acento: #f2a100;
+  --lab-rejilla: rgba(3, 68, 129, 0.075);
+  --lab-barra: #062b54;
+  --lab-fuente-titulos: "Barlow Condensed", "Arial Narrow", "Segoe UI", sans-serif;
+}
+
+:root[data-tema="oscuro"] {
+  --lab-acento: #f5b301;
+  --lab-rejilla: rgba(120, 170, 230, 0.06);
+  --lab-barra: #080f1b;
+}
+
 *,
 *::before,
 *::after {
@@ -55,6 +73,48 @@ img {
 
 * {
   scrollbar-width: thin;
+}
+
+/* Títulos con la letra condensada de los rótulos de planos. Se aplica a los
+   componentes de título de Fluent, así llega a todas las pantallas. */
+body .fui-Display,
+body .fui-LargeTitle,
+body .fui-Title1,
+body .fui-Title2,
+body .fui-Title3,
+body .fui-Subtitle1,
+body .fui-DialogTitle,
+body .fui-DrawerHeaderTitle__heading {
+  font-family: var(--lab-fuente-titulos);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+}
+
+body .fui-Title1 {
+  font-size: 42px;
+  line-height: 46px;
+}
+
+body .fui-Title2 {
+  font-size: 36px;
+  line-height: 40px;
+}
+
+body .fui-Title3 {
+  font-size: 30px;
+  line-height: 34px;
+}
+
+body .fui-Subtitle1,
+body .fui-DialogTitle,
+body .fui-DrawerHeaderTitle__heading {
+  font-size: 24px;
+  line-height: 28px;
+}
+
+/* Las cifras se alinean entre filas (tablas, tarjetas, horarios). */
+body {
+  font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: reduce) {

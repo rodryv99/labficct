@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/sesion.dart';
+import '../../core/datos/proveedores.dart';
 import '../../core/modelos/modelos.dart';
 import '../../core/network/api_cliente.dart';
 import '../../core/network/repositorio.dart';
 import '../../core/theme/tema.dart';
+import '../../features/reservas/reservas_page.dart';
 import 'comunes.dart';
 
 Color colorDeEvento(EventoAgenda e) => e.esClase ? ColoresFicct.clase : ColoresFicct.reserva;
@@ -126,6 +128,68 @@ class _HojaEventoState extends ConsumerState<_HojaEvento> {
   /// 'alistar' o 'cerrar' mientras se envía el aviso.
   String? _enviando;
 
+  /// Mientras se suspende, reanuda o abre la reserva.
+  bool _procesando = false;
+
+  Future<void> _suspender() async {
+    final e = widget.evento;
+    final motivo = await pedirTexto(
+      context,
+      titulo: 'Suspender esta clase',
+      mensaje: 'Se suspende solo el ${fechaLarga(DateTime.parse(e.fecha))}. Los demás días siguen igual.',
+      etiqueta: 'Motivo (opcional)',
+      boton: 'Suspender',
+      maximo: 300,
+    );
+    if (motivo == null || !mounted) return;
+    final contenedor = ProviderScope.containerOf(context, listen: false);
+    setState(() => _procesando = true);
+    try {
+      await ref.read(repositorioProvider).suspenderClase(e.horarioId!, e.fecha, motivo);
+      refrescarAgenda(contenedor);
+      if (!mounted) return;
+      avisar(context, 'Clase suspendida solo ese día.');
+      Navigator.pop(context);
+    } catch (falla) {
+      if (mounted) avisar(context, mensajeDeError(falla), error: true);
+    } finally {
+      if (mounted) setState(() => _procesando = false);
+    }
+  }
+
+  Future<void> _reanudar() async {
+    final e = widget.evento;
+    final contenedor = ProviderScope.containerOf(context, listen: false);
+    setState(() => _procesando = true);
+    try {
+      await ref.read(repositorioProvider).reanudarClase(e.horarioId!, e.fecha);
+      refrescarAgenda(contenedor);
+      if (!mounted) return;
+      avisar(context, 'Clase reanudada.');
+      Navigator.pop(context);
+    } catch (falla) {
+      if (mounted) avisar(context, mensajeDeError(falla), error: true);
+    } finally {
+      if (mounted) setState(() => _procesando = false);
+    }
+  }
+
+  Future<void> _verReserva() async {
+    final e = widget.evento;
+    final gestiona = ref.read(sesionProvider).usuario?.puede('reservas.gestionar') ?? false;
+    final navegador = Navigator.of(context);
+    setState(() => _procesando = true);
+    try {
+      final r = await ref.read(repositorioProvider).reserva(e.reservaId!);
+      if (!mounted) return;
+      navegador.pop(); // Cierra la hoja del evento antes de abrir la de la reserva.
+      await mostrarReserva(navegador.context, r, gestiona: gestiona);
+    } catch (falla) {
+      if (mounted) avisar(context, mensajeDeError(falla), error: true);
+      if (mounted) setState(() => _procesando = false);
+    }
+  }
+
   Future<void> _avisar(String tipo) async {
     final e = widget.evento;
     final alistar = tipo == 'alistar';
@@ -163,7 +227,9 @@ class _HojaEventoState extends ConsumerState<_HojaEvento> {
     final e = widget.evento;
     final tema = Theme.of(context);
     final esquema = tema.colorScheme;
-    final puedeAvisar = (ref.watch(sesionProvider).usuario?.puede('avisos.enviar') ?? false) && !e.suspendida;
+    final usuario = ref.watch(sesionProvider).usuario;
+    final puedeAvisar = (usuario?.puede('avisos.enviar') ?? false) && !e.suspendida;
+    final puedeGestionarHorarios = usuario?.puede('horarios.gestionar') ?? false;
 
     Widget fila(IconData icono, String texto) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -237,6 +303,36 @@ class _HojaEventoState extends ConsumerState<_HojaEvento> {
                 const SizedBox(width: 8),
                 Expanded(child: botonAviso('cerrar', Icons.lock_outline, 'Cerrar aula')),
               ],
+            ),
+          ],
+          // Suspender o reanudar la clase solo ese día (igual que en la web).
+          if (e.esClase && puedeGestionarHorarios && e.horarioId != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: e.suspendida
+                  ? FilledButton.tonalIcon(
+                      onPressed: _procesando ? null : _reanudar,
+                      icon: const Icon(Icons.play_circle_outline),
+                      label: const Text('Reanudar la clase'),
+                    )
+                  : OutlinedButton.icon(
+                      onPressed: _procesando ? null : _suspender,
+                      icon: const Icon(Icons.pause_circle_outline),
+                      label: const Text('Suspender solo este día'),
+                    ),
+            ),
+          ],
+          // Abrir la reserva (desde ahí se puede aprobar o cancelar).
+          if (!e.esClase && e.reservaId != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _procesando ? null : _verReserva,
+                icon: const Icon(Icons.event_note_outlined),
+                label: const Text('Ver la reserva'),
+              ),
             ),
           ],
           const SizedBox(height: 20),

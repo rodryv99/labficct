@@ -219,6 +219,23 @@ class _HojaReserva extends ConsumerStatefulWidget {
 
 class _HojaReservaState extends ConsumerState<_HojaReserva> {
   bool _cancelando = false;
+  bool _aprobando = false;
+
+  Future<void> _aprobar() async {
+    final contenedor = ProviderScope.containerOf(context, listen: false);
+    setState(() => _aprobando = true);
+    try {
+      await ref.read(repositorioProvider).aprobarReserva(widget.reserva.id);
+      refrescarAgenda(contenedor);
+      if (!mounted) return;
+      avisar(context, 'Reserva aprobada. Las clases que chocaban quedaron suspendidas esos días.');
+      Navigator.pop(context);
+    } catch (e) {
+      if (mounted) avisar(context, mensajeDeError(e), error: true);
+    } finally {
+      if (mounted) setState(() => _aprobando = false);
+    }
+  }
 
   Future<void> _cancelar() async {
     final texto = await pedirTexto(
@@ -252,7 +269,12 @@ class _HojaReservaState extends ConsumerState<_HojaReserva> {
     final tema = Theme.of(context);
     final esquema = tema.colorScheme;
     final fin = r.fin;
-    final sePuedeCancelar = widget.gestiona && !r.cancelada && fin != null && fin.isAfter(DateTime.now());
+    final vigente = fin != null && fin.isAfter(DateTime.now());
+    final sePuedeCancelar = widget.gestiona && !r.cancelada && vigente;
+    final sePuedeAprobar = (ref.watch(sesionProvider).usuario?.puede('reservas.aprobar') ?? false) &&
+        r.estado == 'pendiente' &&
+        !r.cancelada &&
+        vigente;
 
     Widget fila(IconData icono, String texto) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 5),
@@ -299,6 +321,29 @@ class _HojaReservaState extends ConsumerState<_HojaReserva> {
               spacing: 6,
               runSpacing: 6,
               children: [for (final p in r.programas) Chip(label: Text(p), visualDensity: VisualDensity.compact)],
+            ),
+          ],
+          if (sePuedeAprobar) ...[
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: esquema.surfaceContainerHigh, borderRadius: BorderRadius.circular(10)),
+              child: Text(
+                'Está por aprobar porque choca con una o más clases. Si la apruebas, tendrá prioridad y esas clases '
+                'se suspenderán solo esos días.',
+                style: tema.textTheme.bodySmall,
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _aprobando ? null : _aprobar,
+                icon: _aprobando
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.check_circle_outline),
+                label: const Text('Aprobar reserva'),
+              ),
             ),
           ],
           if (sePuedeCancelar) ...[

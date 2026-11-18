@@ -49,6 +49,7 @@ def solicitar(*, datos: dict, usuario) -> SolicitudAsistencia:
         enlace=_enlace(solicitud),
         datos=_datos(solicitud),
         excepto=usuario,
+        push=True,
     )
     return solicitud
 

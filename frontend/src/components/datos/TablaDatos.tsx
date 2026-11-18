@@ -17,7 +17,7 @@ import { EstadoError } from "../feedback/Estados";
 const useEstilos = makeStyles({
   contenedor: {
     backgroundColor: tokens.colorNeutralBackground1,
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    border: `1.5px solid ${tokens.colorNeutralStroke2}`,
     borderRadius: tokens.borderRadiusLarge,
     overflowX: "auto",
   },
@@ -26,6 +26,7 @@ const useEstilos = makeStyles({
   },
   encabezado: {
     backgroundColor: tokens.colorNeutralBackground2,
+    borderBottom: `1.5px solid ${tokens.colorNeutralStroke2}`,
   },
   fila: {
     cursor: "pointer",

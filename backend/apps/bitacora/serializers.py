@@ -5,8 +5,10 @@ from rest_framework import serializers
 
 from apps.core.permisos import tiene_permiso
 from apps.core.roles import Rol
+from apps.laboratorios.models import Laboratorio
 from apps.usuarios.models import Usuario
 
+from . import mapa as mapa_bitacora
 from .models import EntradaBitacora, RevisionProgramada
 
 
@@ -17,6 +19,9 @@ class EntradaBitacoraSerializer(serializers.ModelSerializer):
     autor_nombre = serializers.SerializerMethodField()
     revision_titulo = serializers.SerializerMethodField()
     editable = serializers.SerializerMethodField(help_text="Si quien consulta puede editarla o borrarla.")
+    # Al leer: el mapa completo (ver mapa.py). Al escribir: {"atributos": [...], "marcas": [...]}
+    # o null para quitarlo; la copia de la grilla la pone el servidor.
+    mapa = serializers.JSONField(required=False, allow_null=True)
 
     class Meta:
         model = EntradaBitacora
@@ -35,6 +40,7 @@ class EntradaBitacoraSerializer(serializers.ModelSerializer):
             "autor",
             "autor_nombre",
             "editable",
+            "mapa",
             "creado_en",
             "actualizado_en",
         ]
@@ -61,6 +67,28 @@ class EntradaBitacoraSerializer(serializers.ModelSerializer):
         if valor > timezone.now() + timedelta(minutes=5):
             raise serializers.ValidationError("La fecha no puede estar en el futuro.")
         return valor
+
+    def validate(self, attrs):
+        entrada = self.instance
+        laboratorio = attrs.get("laboratorio", entrada.laboratorio if entrada else None)
+        mismo_lab = entrada is not None and laboratorio is not None and entrada.laboratorio_id == laboratorio.pk
+        base = entrada.mapa if mismo_lab else None
+        if "mapa" in attrs:
+            attrs["mapa"] = mapa_bitacora.armar(base=base, laboratorio=laboratorio, pintado=attrs["mapa"])
+        elif entrada is not None and entrada.mapa and not mismo_lab:
+            # Se movió a otro laboratorio: el mapa era de la grilla del anterior.
+            attrs["mapa"] = None
+        return attrs
+
+
+class ImportarEntradaSerializer(serializers.Serializer):
+    archivo = serializers.JSONField(help_text="Contenido del archivo .bitacora.json exportado.")
+    laboratorio = serializers.PrimaryKeyRelatedField(
+        queryset=Laboratorio.objects.all(),
+        required=False,
+        allow_null=True,
+        help_text="Dónde importarla. Sin esto, se busca el laboratorio por el código del archivo.",
+    )
 
 
 class RevisionSerializer(serializers.ModelSerializer):

@@ -36,11 +36,16 @@ services:
   backend:
     build: ./backend
     env_file: ./backend/.env
+    # Push (Firebase): ruta de la clave de la cuenta de servicio dentro del contenedor.
+    environment:
+      FCM_CREDENCIALES: /run/secrets/fcm.json
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app
+      # Clave de Firebase (solo lectura). El archivo vive en secrets/ y NO se sube al repo.
+      - ./secrets/fcm.json:/run/secrets/fcm.json:ro
     ports:
       - "${BACKEND_PUERTO_LOCAL:-8000}:8000"
     depends_on:
@@ -52,11 +57,16 @@ services:
   worker:
     build: ./backend
     env_file: ./backend/.env
+    # Push (Firebase): el worker es quien envía los avisos y recordatorios.
+    environment:
+      FCM_CREDENCIALES: /run/secrets/fcm.json
     # --beat: además ejecuta las tareas periódicas (avisos de aulas cada minuto,
-    # revisiones que vencen). Si cambias código de tareas, reinicia este servicio.
+    # revisiones que vencen, recordatorio de turno). Si cambias código de tareas,
+    # reinicia este servicio.
     command: celery -A config worker --beat --schedule-filename /tmp/celerybeat-schedule -l info
     volumes:
       - ./backend:/app
+      - ./secrets/fcm.json:/run/secrets/fcm.json:ro
     depends_on:
       db:
         condition: service_healthy

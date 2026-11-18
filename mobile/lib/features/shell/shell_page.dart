@@ -29,13 +29,19 @@ class ShellPage extends ConsumerWidget {
       body: child,
       bottomNavigationBar: pestanas.length < 2
           ? null
-          : NavigationBar(
-              selectedIndex: indice < 0 ? 0 : indice,
-              onDestinationSelected: (i) => context.go(pestanas[i].ruta),
-              destinations: [
-                for (final p in pestanas)
-                  NavigationDestination(icon: Icon(p.icono), selectedIcon: Icon(p.iconoActivo), label: p.etiqueta),
-              ],
+          : DecoratedBox(
+              // La línea fina que separa las pestañas del contenido.
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant, width: 1.5)),
+              ),
+              child: NavigationBar(
+                selectedIndex: indice < 0 ? 0 : indice,
+                onDestinationSelected: (i) => context.go(pestanas[i].ruta),
+                destinations: [
+                  for (final p in pestanas)
+                    NavigationDestination(icon: Icon(p.icono), selectedIcon: Icon(p.iconoActivo), label: p.etiqueta),
+                ],
+              ),
             ),
     );
   }

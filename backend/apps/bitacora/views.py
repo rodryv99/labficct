@@ -1,7 +1,9 @@
 import django_filters
 from django.db.models import OuterRef, Subquery
-from drf_spectacular.utils import extend_schema
-from rest_framework import viewsets
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -9,10 +11,17 @@ from apps.core.errores import ErrorNegocio
 from apps.core.mixins import AuditoriaMixin
 from apps.core.permisos import tiene_permiso
 from apps.core.permissions import TienePermiso, permisos_crud
+from apps.laboratorios.models import Laboratorio
 
+from . import mapa as mapa_bitacora
 from . import services
 from .models import EntradaBitacora, RevisionProgramada
-from .serializers import EntradaBitacoraSerializer, RealizarRevisionSerializer, RevisionSerializer
+from .serializers import (
+    EntradaBitacoraSerializer,
+    ImportarEntradaSerializer,
+    RealizarRevisionSerializer,
+    RevisionSerializer,
+)
 
 
 class EntradaFilter(django_filters.FilterSet):
@@ -29,7 +38,13 @@ class EntradaBitacoraViewSet(viewsets.ModelViewSet):
 
     serializer_class = EntradaBitacoraSerializer
     permission_classes = [TienePermiso]
-    permisos = permisos_crud("bitacora.ver", "bitacora.gestionar")
+    permisos = permisos_crud(
+        "bitacora.ver",
+        "bitacora.gestionar",
+        plantilla="bitacora.ver",
+        exportar="bitacora.ver",
+        importar="bitacora.gestionar",
+    )
     filterset_class = EntradaFilter
     search_fields = ["titulo", "descripcion", "elementos", "laboratorio__codigo"]
     ordering_fields = ["fecha", "creado_en"]
@@ -55,6 +70,53 @@ class EntradaBitacoraViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         self._puede_modificar(instance)
         instance.delete()
+
+    @extend_schema(parameters=[OpenApiParameter("laboratorio", int, required=True)], responses=dict)
+    @action(detail=False, methods=["get"])
+    def plantilla(self, request):
+        """Mapa vacío con la distribución actual de un laboratorio, para empezar a pintar."""
+        # Un id que no es número daría ValueError (500) en vez de 404.
+        lab_id = request.query_params.get("laboratorio", "")
+        laboratorio = get_object_or_404(Laboratorio, pk=int(lab_id) if lab_id.isdigit() else 0)
+        return Response(mapa_bitacora.plantilla(laboratorio))
+
+    @extend_schema(
+        parameters=[OpenApiParameter("formato", str, enum=["jpg", "png", "pdf", "json"], required=False)],
+        responses={(200, "application/octet-stream"): bytes},
+    )
+    @action(detail=True, methods=["get"])
+    def exportar(self, request, pk=None):
+        """Descarga la entrada como imagen (jpg/png), PDF o archivo de bitácora (json) para importarla en otro lado."""
+        formato = request.query_params.get("formato", "jpg").lower()
+        if formato not in ("jpg", "jpeg", "png", "pdf", "json"):
+            raise ErrorNegocio("Formato no válido: usa jpg, png, pdf o json.", codigo="formato_invalido")
+        contenido, tipo, nombre = mapa_bitacora.exportar(self.get_object(), formato)
+        respuesta = HttpResponse(contenido, content_type=tipo)
+        respuesta["Content-Disposition"] = f'attachment; filename="{nombre}"'
+        respuesta["Access-Control-Expose-Headers"] = "Content-Disposition"
+        return respuesta
+
+    @extend_schema(request=ImportarEntradaSerializer, responses=EntradaBitacoraSerializer)
+    @action(detail=False, methods=["post"])
+    def importar(self, request):
+        """Crea una entrada a partir de un archivo de bitácora exportado (también desde otro equipo)."""
+        serializer = ImportarEntradaSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = mapa_bitacora.leer_archivo(serializer.validated_data["archivo"])
+        laboratorio = serializer.validated_data.get("laboratorio")
+        codigo = datos.pop("codigo_laboratorio")
+        if laboratorio is None:
+            laboratorio = Laboratorio.objects.filter(codigo__iexact=codigo).first() if codigo else None
+            if laboratorio is None:
+                raise ErrorNegocio(
+                    f"No hay un laboratorio {codigo or 'con ese código'}: elige en cuál importarla.",
+                    codigo="laboratorio_desconocido",
+                    campos={"laboratorio": ["Elige el laboratorio."]},
+                )
+        entrada = EntradaBitacora.objects.create(
+            laboratorio=laboratorio, creado_por=request.user, actualizado_por=request.user, **datos
+        )
+        return Response(self.get_serializer(entrada).data, status=status.HTTP_201_CREATED)
 
 
 class RevisionViewSet(AuditoriaMixin, viewsets.ModelViewSet):

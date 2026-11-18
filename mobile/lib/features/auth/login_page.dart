@@ -52,8 +52,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final expirada = ref.watch(sesionProvider).expirada;
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
+      body: FondoPlano(
+        child: SafeArea(
+          child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             child: ConstrainedBox(
@@ -69,8 +70,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       Text(
                         Env.appName,
                         textAlign: TextAlign.center,
-                        style: tema.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
+                        style: estiloTitulo(
+                          tamano: 38,
                           color: esquema.brightness == Brightness.light ? ColoresFicct.azulOscuro : esquema.onSurface,
                         ),
                       ),
@@ -139,9 +140,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                       const SizedBox(height: 40),
                       Text(
-                        'Facultad de Ingeniería en Ciencias de la Computación y Telecomunicaciones · UAGRM',
+                        'Facultad de Ingeniería en Ciencias de la Computación y Telecomunicaciones, UAGRM',
                         textAlign: TextAlign.center,
-                        style: tema.textTheme.labelSmall?.copyWith(color: esquema.outline),
+                        style: tema.textTheme.labelMedium?.copyWith(color: esquema.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -149,6 +150,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               ),
             ),
           ),
+        ),
         ),
       ),
     );
@@ -167,7 +169,7 @@ class _Aviso extends StatelessWidget {
     final frente = esError ? esquema.onErrorContainer : esquema.onSecondaryContainer;
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: fondo, borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(color: fondo, borderRadius: BorderRadius.circular(4)),
       child: Row(
         children: [
           Icon(esError ? Icons.error_outline : Icons.info_outline, color: frente, size: 20),

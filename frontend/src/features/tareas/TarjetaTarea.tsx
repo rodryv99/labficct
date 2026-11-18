@@ -200,11 +200,16 @@ export function TarjetaTarea({ tarea: t, movible, arrastrando, onAbrir, onMover,
         )}
       </div>
 
-      {(t.prioridad !== "normal" || t.revision !== null || t.laboratorio_codigo || t.fecha_limite) && (
+      {(t.prioridad !== "normal" ||
+        t.revision !== null ||
+        t.verificacion !== null ||
+        t.laboratorio_codigo ||
+        t.fecha_limite) && (
         <div className={estilos.etiquetas}>
           {t.prioridad === "alta" && <EtiquetaEstado tono="peligro">Alta</EtiquetaEstado>}
           {t.prioridad === "baja" && <EtiquetaEstado tono="neutro">Baja</EtiquetaEstado>}
           {t.revision !== null && <EtiquetaEstado tono="info">Revisión</EtiquetaEstado>}
+          {t.verificacion !== null && <EtiquetaEstado tono="info">Inventario</EtiquetaEstado>}
           {t.laboratorio_codigo && <Codigo>{t.laboratorio_codigo}</Codigo>}
           {t.fecha_limite && (
             <span className={mergeClasses(estilos.fecha, vencida && estilos.vencida)}>

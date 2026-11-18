@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/auth/sesion.dart';
 import '../../core/datos/proveedores.dart';
@@ -11,6 +12,7 @@ import '../../core/network/api_cliente.dart';
 import '../../core/network/repositorio.dart';
 import '../../shared/widgets/comunes.dart';
 import '../../shared/widgets/grilla_laboratorio.dart';
+import '../../shared/widgets/seleccion.dart';
 import 'laboratorios_page.dart';
 
 const _estadosElemento = {
@@ -27,7 +29,9 @@ class LaboratorioDetallePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final laboratorio = ref.watch(laboratorioProvider(id));
-    final verCredenciales = ref.watch(sesionProvider).usuario?.puede('laboratorios.credenciales') ?? false;
+    final usuario = ref.watch(sesionProvider).usuario;
+    final gestionar = usuario?.puede('laboratorios.gestionar') ?? false;
+    final verCredenciales = usuario?.puede('laboratorios.credenciales') ?? false;
     final pestanas = [
       const Tab(text: 'Distribución'),
       const Tab(text: 'Información'),
@@ -54,18 +58,28 @@ class LaboratorioDetallePage extends ConsumerWidget {
             loading: () => const Text('Laboratorio'),
             error: (_, _) => const Text('Laboratorio'),
           ),
+          actions: [
+            if (gestionar)
+              laboratorio.maybeWhen(
+                data: (l) => IconButton(
+                  tooltip: 'Editar laboratorio',
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => context.push('/laboratorio/${l.id}/editar', extra: l),
+                ),
+                orElse: () => const SizedBox.shrink(),
+              ),
+          ],
           bottom: TabBar(tabs: pestanas, isScrollable: false),
         ),
         body: laboratorio.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => EstadoError(error: e, onReintentar: () => ref.invalidate(laboratorioProvider(id))),
           data: (l) => TabBarView(
-            // La grilla usa el deslizamiento para moverse; las pestañas se cambian tocándolas.
             physics: const NeverScrollableScrollPhysics(),
             children: [
-              _Distribucion(laboratorio: l),
+              _Distribucion(laboratorio: l, puedeEditar: gestionar),
               _Informacion(laboratorio: l),
-              if (verCredenciales) _Credenciales(laboratorio: l.id),
+              if (verCredenciales) _Credenciales(laboratorio: l.id, puedeEditar: gestionar),
             ],
           ),
         ),
@@ -76,8 +90,13 @@ class LaboratorioDetallePage extends ConsumerWidget {
 
 // ── Distribución ──
 class _Distribucion extends ConsumerWidget {
-  const _Distribucion({required this.laboratorio});
+  const _Distribucion({required this.laboratorio, required this.puedeEditar});
   final Laboratorio laboratorio;
+  final bool puedeEditar;
+
+  void _editar(BuildContext context) {
+    context.push('/laboratorio/${laboratorio.id}/distribucion', extra: laboratorio.codigo);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -99,10 +118,19 @@ class _Distribucion extends ConsumerWidget {
     if (d == null || t == null) return const Center(child: CircularProgressIndicator());
 
     if (d.celdas.isEmpty) {
-      return const EstadoVacio(
+      return EstadoVacio(
         icono: Icons.grid_off_outlined,
         titulo: 'Sin distribución',
-        descripcion: 'Este laboratorio todavía no tiene elementos dibujados. Se dibuja desde la web.',
+        descripcion: puedeEditar
+            ? 'Este laboratorio todavía no tiene elementos dibujados.'
+            : 'Este laboratorio todavía no tiene elementos dibujados. Lo dibuja el administrador.',
+        accion: puedeEditar
+            ? FilledButton.icon(
+                onPressed: () => _editar(context),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Dibujar distribución'),
+              )
+            : null,
       );
     }
 
@@ -154,11 +182,27 @@ class _Distribucion extends ConsumerWidget {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-          child: Text(
-            'Arrastra para moverte y pellizca para acercar. Toca un elemento para ver su ficha.',
-            textAlign: TextAlign.center,
-            style: tema.textTheme.bodySmall?.copyWith(color: tema.colorScheme.onSurfaceVariant),
-          ),
+          child: puedeEditar
+              ? Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Toca un elemento para ver su ficha.',
+                        style: tema.textTheme.bodySmall?.copyWith(color: tema.colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+                    FilledButton.tonalIcon(
+                      onPressed: () => _editar(context),
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Editar'),
+                    ),
+                  ],
+                )
+              : Text(
+                  'Arrastra para moverte y pellizca para acercar. Toca un elemento para ver su ficha.',
+                  textAlign: TextAlign.center,
+                  style: tema.textTheme.bodySmall?.copyWith(color: tema.colorScheme.onSurfaceVariant),
+                ),
         ),
       ],
     );
@@ -257,13 +301,34 @@ class _Dato extends StatelessWidget {
 }
 
 // ── Información ──
-class _Informacion extends StatelessWidget {
+class _Informacion extends ConsumerWidget {
   const _Informacion({required this.laboratorio});
   final Laboratorio laboratorio;
 
+  Future<void> _editarSoftware(BuildContext context, WidgetRef ref) async {
+    final contenedor = ProviderScope.containerOf(context, listen: false);
+    final seleccion = await seleccionar(
+      context,
+      titulo: 'Software instalado',
+      opciones: ref.read(softwareProvider.future).then(
+            (lista) => lista.map((s) => OpcionSeleccion(s.id, s.nombreCompleto)).toList(),
+          ),
+      seleccion: laboratorio.software.map((s) => s.id).toSet(),
+    );
+    if (seleccion == null) return;
+    try {
+      await ref.read(repositorioProvider).guardarSoftwareLaboratorio(laboratorio.id, seleccion.toList());
+      refrescarLaboratorios(contenedor, id: laboratorio.id);
+      if (context.mounted) avisar(context, 'Software actualizado.');
+    } catch (e) {
+      if (context.mounted) avisar(context, mensajeDeError(e), error: true);
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = laboratorio;
+    final puedeSoftware = ref.watch(sesionProvider).usuario?.puede('laboratorios.software') ?? false;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
@@ -286,7 +351,17 @@ class _Informacion extends StatelessWidget {
             ),
           ),
         ),
-        const TituloSeccion('Software instalado'),
+        Row(
+          children: [
+            const Expanded(child: TituloSeccion('Software instalado')),
+            if (puedeSoftware)
+              TextButton.icon(
+                onPressed: () => _editarSoftware(context, ref),
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Editar'),
+              ),
+          ],
+        ),
         if (l.software.isEmpty)
           Text(
             'No se registró software para este laboratorio.',
@@ -312,8 +387,9 @@ class _Informacion extends StatelessWidget {
 
 // ── Credenciales ──
 class _Credenciales extends ConsumerStatefulWidget {
-  const _Credenciales({required this.laboratorio});
+  const _Credenciales({required this.laboratorio, required this.puedeEditar});
   final int laboratorio;
+  final bool puedeEditar;
 
   @override
   ConsumerState<_Credenciales> createState() => _CredencialesState();
@@ -360,121 +436,329 @@ class _CredencialesState extends ConsumerState<_Credenciales> {
     if (mounted) avisar(context, '$que copiado.');
   }
 
+  Future<void> _editarCredencial([Credencial? inicial]) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => _HojaCredencial(laboratorio: widget.laboratorio, inicial: inicial),
+    );
+  }
+
+  Future<void> _eliminar(Credencial c) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('¿Borrar credencial?'),
+        content: Text('Se eliminará "${c.descripcion}".'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancelar')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () => Navigator.pop(d, true),
+            child: const Text('Borrar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+    final contenedor = ProviderScope.containerOf(context, listen: false);
+    try {
+      await ref.read(repositorioProvider).eliminarCredencial(c.id);
+      contenedor.invalidate(credencialesProvider(widget.laboratorio));
+      if (mounted) avisar(context, 'Credencial borrada.');
+    } catch (e) {
+      if (mounted) avisar(context, mensajeDeError(e), error: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final credenciales = ref.watch(credencialesProvider(widget.laboratorio));
     final tema = Theme.of(context);
     final esquema = tema.colorScheme;
 
-    return credenciales.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => EstadoError(
-        error: e,
-        onReintentar: () => ref.invalidate(credencialesProvider(widget.laboratorio)),
-      ),
-      data: (lista) {
-        if (lista.isEmpty) {
-          return const EstadoVacio(
-            icono: Icons.key_off_outlined,
-            titulo: 'Sin credenciales',
-            descripcion: 'El administrador puede guardarlas desde la web (Wi-Fi, cuenta local de las PC, BIOS…).',
-          );
-        }
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: esquema.secondaryContainer.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(10),
+    return Scaffold(
+      floatingActionButton: widget.puedeEditar
+          ? FloatingActionButton.extended(
+              onPressed: () => _editarCredencial(),
+              icon: const Icon(Icons.add),
+              label: const Text('Credencial'),
+            )
+          : null,
+      body: credenciales.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => EstadoError(
+          error: e,
+          onReintentar: () => ref.invalidate(credencialesProvider(widget.laboratorio)),
+        ),
+        data: (lista) {
+          if (lista.isEmpty) {
+            return EstadoVacio(
+              icono: Icons.key_off_outlined,
+              titulo: 'Sin credenciales',
+              descripcion: widget.puedeEditar
+                  ? 'Guarda aquí la Wi-Fi, la cuenta local de las PC, la BIOS…'
+                  : 'El administrador puede guardarlas (Wi-Fi, cuenta local de las PC, BIOS…).',
+              accion: widget.puedeEditar
+                  ? FilledButton.icon(
+                      onPressed: () => _editarCredencial(),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Nueva credencial'),
+                    )
+                  : null,
+            );
+          }
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: esquema.secondaryContainer.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.shield_outlined, size: 20, color: esquema.onSecondaryContainer),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Cada vez que muestras una contraseña queda registrado quién y cuándo la vio.',
+                        style: tema.textTheme.bodySmall?.copyWith(color: esquema.onSecondaryContainer),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.shield_outlined, size: 20, color: esquema.onSecondaryContainer),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Cada vez que muestras una contraseña queda registrado quién y cuándo la vio.',
-                      style: tema.textTheme.bodySmall?.copyWith(color: esquema.onSecondaryContainer),
+              const SizedBox(height: 12),
+              for (final c in lista) ...[
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(c.descripcion,
+                                  style: tema.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                            ),
+                            if (widget.puedeEditar)
+                              PopupMenuButton<String>(
+                                onSelected: (v) => v == 'editar' ? _editarCredencial(c) : _eliminar(c),
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(value: 'editar', child: Text('Editar')),
+                                  PopupMenuItem(value: 'borrar', child: Text('Borrar')),
+                                ],
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.person_outline, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(child: SelectableText(c.usuario.isEmpty ? '—' : c.usuario)),
+                            if (c.usuario.isNotEmpty)
+                              IconButton(
+                                tooltip: 'Copiar usuario',
+                                icon: const Icon(Icons.copy_outlined, size: 18),
+                                onPressed: () => _copiar(c.usuario, 'Usuario'),
+                              ),
+                          ],
+                        ),
+                        if (c.tienePassword)
+                          Row(
+                            children: [
+                              const Icon(Icons.key_outlined, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _visibles.containsKey(c.id)
+                                    ? SelectableText(
+                                        _visibles[c.id]!,
+                                        style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w600),
+                                      )
+                                    : const Text('••••••••••'),
+                              ),
+                              if (_cargando.contains(c.id))
+                                const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                                )
+                              else if (_visibles.containsKey(c.id)) ...[
+                                IconButton(
+                                  tooltip: 'Copiar contraseña',
+                                  icon: const Icon(Icons.copy_outlined, size: 18),
+                                  onPressed: () => _copiar(_visibles[c.id]!, 'Contraseña'),
+                                ),
+                                IconButton(
+                                  tooltip: 'Ocultar',
+                                  icon: const Icon(Icons.visibility_off_outlined, size: 18),
+                                  onPressed: () => _ocultar(c.id),
+                                ),
+                              ] else
+                                TextButton(onPressed: () => _revelar(c), child: const Text('Mostrar')),
+                            ],
+                          ),
+                        if (c.notas.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6, right: 8),
+                            child: Text(
+                              c.notas,
+                              style: tema.textTheme.bodySmall?.copyWith(color: esquema.onSurfaceVariant),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                ],
+                ),
+                const SizedBox(height: 10),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HojaCredencial extends ConsumerStatefulWidget {
+  const _HojaCredencial({required this.laboratorio, this.inicial});
+  final int laboratorio;
+  final Credencial? inicial;
+
+  @override
+  ConsumerState<_HojaCredencial> createState() => _HojaCredencialState();
+}
+
+class _HojaCredencialState extends ConsumerState<_HojaCredencial> {
+  late final TextEditingController _descripcion;
+  late final TextEditingController _usuario;
+  late final TextEditingController _password;
+  late final TextEditingController _notas;
+  bool _verPassword = false;
+  bool _guardando = false;
+  final _errores = <String, String>{};
+
+  bool get _esNuevo => widget.inicial == null;
+
+  @override
+  void initState() {
+    super.initState();
+    _descripcion = TextEditingController(text: widget.inicial?.descripcion ?? '');
+    _usuario = TextEditingController(text: widget.inicial?.usuario ?? '');
+    _password = TextEditingController();
+    _notas = TextEditingController(text: widget.inicial?.notas ?? '');
+  }
+
+  @override
+  void dispose() {
+    _descripcion.dispose();
+    _usuario.dispose();
+    _password.dispose();
+    _notas.dispose();
+    super.dispose();
+  }
+
+  Future<void> _guardar() async {
+    if (_descripcion.text.trim().isEmpty) {
+      setState(() => _errores['descripcion'] = 'Escribe para qué es.');
+      return;
+    }
+    setState(() {
+      _guardando = true;
+      _errores.clear();
+    });
+    final contenedor = ProviderScope.containerOf(context, listen: false);
+    final datos = <String, dynamic>{
+      'laboratorio': widget.laboratorio,
+      'descripcion': _descripcion.text.trim(),
+      'usuario': _usuario.text.trim(),
+      'notas': _notas.text.trim(),
+      // Al editar, solo se manda la contraseña si se escribió una nueva.
+      if (_password.text.isNotEmpty || _esNuevo) 'password': _password.text,
+    };
+    try {
+      await ref.read(repositorioProvider).guardarCredencial(datos, id: widget.inicial?.id);
+      contenedor.invalidate(credencialesProvider(widget.laboratorio));
+      if (!mounted) return;
+      Navigator.pop(context);
+      avisar(context, _esNuevo ? 'Credencial guardada.' : 'Cambios guardados.');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _guardando = false;
+        _errores.addAll(erroresDeCampos(e));
+      });
+      avisar(context, mensajeDeError(e), error: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_esNuevo ? 'Nueva credencial' : 'Editar credencial',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _descripcion,
+              decoration: InputDecoration(
+                labelText: 'Para qué es',
+                hintText: 'Wi-Fi del laboratorio, cuenta local…',
+                errorText: _errores['descripcion'],
               ),
             ),
             const SizedBox(height: 12),
-            for (final c in lista) ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(c.descripcion, style: tema.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.person_outline, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(child: SelectableText(c.usuario.isEmpty ? '—' : c.usuario)),
-                          if (c.usuario.isNotEmpty)
-                            IconButton(
-                              tooltip: 'Copiar usuario',
-                              icon: const Icon(Icons.copy_outlined, size: 18),
-                              onPressed: () => _copiar(c.usuario, 'Usuario'),
-                            ),
-                        ],
-                      ),
-                      if (c.tienePassword)
-                        Row(
-                          children: [
-                            const Icon(Icons.key_outlined, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _visibles.containsKey(c.id)
-                                  ? SelectableText(
-                                      _visibles[c.id]!,
-                                      style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w600),
-                                    )
-                                  : const Text('••••••••••'),
-                            ),
-                            if (_cargando.contains(c.id))
-                              const Padding(
-                                padding: EdgeInsets.all(12),
-                                child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-                              )
-                            else if (_visibles.containsKey(c.id)) ...[
-                              IconButton(
-                                tooltip: 'Copiar contraseña',
-                                icon: const Icon(Icons.copy_outlined, size: 18),
-                                onPressed: () => _copiar(_visibles[c.id]!, 'Contraseña'),
-                              ),
-                              IconButton(
-                                tooltip: 'Ocultar',
-                                icon: const Icon(Icons.visibility_off_outlined, size: 18),
-                                onPressed: () => _ocultar(c.id),
-                              ),
-                            ] else
-                              TextButton(onPressed: () => _revelar(c), child: const Text('Mostrar')),
-                          ],
-                        ),
-                      if (c.notas.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6, right: 8),
-                          child: Text(
-                            c.notas,
-                            style: tema.textTheme.bodySmall?.copyWith(color: esquema.onSurfaceVariant),
-                          ),
-                        ),
-                    ],
-                  ),
+            TextField(
+              controller: _usuario,
+              decoration: InputDecoration(labelText: 'Usuario (opcional)', errorText: _errores['usuario']),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _password,
+              obscureText: !_verPassword,
+              decoration: InputDecoration(
+                labelText: _esNuevo ? 'Contraseña' : 'Nueva contraseña (vacío = no cambiar)',
+                errorText: _errores['password'],
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _verPassword = !_verPassword),
+                  icon: Icon(_verPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
                 ),
               ),
-              const SizedBox(height: 10),
-            ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _notas,
+              minLines: 1,
+              maxLines: 3,
+              decoration: InputDecoration(labelText: 'Notas (opcional)', errorText: _errores['notas']),
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: _guardando ? null : _guardar,
+                child: _guardando
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Guardar'),
+              ),
+            ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 }

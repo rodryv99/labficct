@@ -65,6 +65,20 @@ MATRIZ: dict[str, set[str]] = {
     "tareas.ver": {ADMIN, AUXILIAR},
     "tareas.gestionar": {ADMIN, AUXILIAR},  # crear, mover y anotar avances
     "tareas.eliminar_todas": {ADMIN},  # cada quien puede borrar las que creó
+    # 14. Inventario de activos fijos
+    "inventario.ver": {ADMIN, AUXILIAR},  # ver y buscar activos, movimientos y verificaciones
+    # Altas, correcciones, traslados, bajas, catálogos y pedir (cerrar, cancelar) verificaciones.
+    "inventario.gestionar": {ADMIN},
+    "inventario.verificar": {ADMIN, AUXILIAR},  # marcar los activos de una verificación
+    # 15. Control de asistencia de los auxiliares (entrada y salida con GPS y huella)
+    "marcaciones.ver": {ADMIN, AUXILIAR},  # cada auxiliar ve las suyas; el Admin, todas
+    "marcaciones.marcar": {AUXILIAR},  # marcar entrada y salida desde la app
+    "marcaciones.gestionar": {ADMIN},  # lugares, horarios, lugar de cada auxiliar, reportes y salidas a mano
+    # 16. Respaldos (copias de seguridad) de la base de datos
+    "respaldos.ver": {ADMIN},  # ver la lista y descargar
+    "respaldos.gestionar": {ADMIN},  # generar y eliminar respaldos
+    # 17. Reportes y BI (tablero, reportes y constructor dinámico) — solo el Admin
+    "reportes.ver": {ADMIN},
 }
 
 

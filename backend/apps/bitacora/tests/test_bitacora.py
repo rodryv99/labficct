@@ -124,3 +124,121 @@ def test_reabrir_la_tarea_no_registra_la_revision_dos_veces(cliente, auxiliar, r
     for estado in ("hecha", "en_progreso", "hecha"):
         c.post(f"{API}tareas/{tarea.id}/estado/", {"estado": estado}, format="json")
     assert EntradaBitacora.objects.filter(revision=revision).count() == 1
+
+
+# ── Mapa estilo OrganiLab ───────────────────────────────
+
+
+@pytest.fixture
+def lab_dibujado(lab):
+    from apps.laboratorios.models import ElementoLaboratorio, TipoElemento
+
+    pc = TipoElemento.objects.create(nombre="Computadora", icono="pc", prefijo_etiqueta="PC")
+    # Dos filas de PCs que empiezan en la fila 2 y la columna 1: el mapa guarda solo ese rectángulo.
+    for i, (fila, columna) in enumerate([(2, 1), (2, 2), (3, 1), (3, 3)], start=1):
+        ElementoLaboratorio.objects.create(
+            laboratorio=lab, tipo=pc, fila=fila, columna=columna, etiqueta=f"PC-{i:02d}", ip=f"10.0.0.{i}"
+        )
+    return lab
+
+
+def _pintado(*marcas):
+    return {
+        "atributos": [
+            {"nombre": "Funciona", "color": "#22A34A"},
+            {"nombre": "Con falla", "color": "#E5383B"},
+        ],
+        "marcas": [{"fila": f, "columna": c, "atributo": a} for f, c, a in marcas],
+    }
+
+
+def test_plantilla_recorta_el_rectangulo_usado(cliente, auxiliar, lab_dibujado):
+    r = cliente(auxiliar).get(f"{API}bitacora/plantilla/", {"laboratorio": lab_dibujado.id})
+    assert r.status_code == 200, r.data
+    assert (r.data["filas"], r.data["columnas"]) == (2, 3)
+    assert r.data["origen"] == {"fila": 2, "columna": 1}
+    assert [(c["fila"], c["columna"], c["etiqueta"]) for c in r.data["celdas"]][0] == (0, 0, "PC-01")
+    assert len(r.data["atributos"]) == 2
+
+
+def test_registrar_con_mapa_pintado(cliente, auxiliar, lab_dibujado):
+    c = cliente(auxiliar)
+    datos = {
+        "laboratorio": lab_dibujado.id,
+        "tipo": "revision",
+        "titulo": "Revisión de equipos",
+        "mapa": _pintado((0, 0, 0), (0, 1, 1), (0, 1, 0)),
+    }
+    r = c.post(f"{API}bitacora/", datos, format="json")
+    assert r.status_code == 201, r.data
+    # Si una casilla viene dos veces, gana la última.
+    assert r.data["mapa"]["marcas"] == [
+        {"fila": 0, "columna": 0, "atributo": 0},
+        {"fila": 0, "columna": 1, "atributo": 0},
+    ]
+    assert r.data["mapa"]["celdas"][0]["ip"] == "10.0.0.1"
+
+    # Cambiar la grilla después no cambia el mapa de la entrada (es una copia).
+    lab_dibujado.elementos.all().delete()
+    url = f"{API}bitacora/{r.data['id']}/"
+    r = c.patch(url, {"mapa": _pintado((1, 2, 1))}, format="json")
+    assert r.status_code == 200, r.data
+    assert len(r.data["mapa"]["celdas"]) == 4
+    assert r.data["mapa"]["marcas"] == [{"fila": 1, "columna": 2, "atributo": 1}]
+
+    # Quitar el mapa.
+    assert c.patch(url, {"mapa": None}, format="json").data["mapa"] is None
+
+
+def test_mapa_invalido(cliente, auxiliar, lab_dibujado):
+    base = {"laboratorio": lab_dibujado.id, "titulo": "Revisión"}
+    c = cliente(auxiliar)
+    # Casilla vacía (fila 1, columna 1 del rectángulo no tiene elemento).
+    r = c.post(f"{API}bitacora/", {**base, "mapa": _pintado((1, 1, 0))}, format="json")
+    assert r.status_code == 400
+    assert r.data["codigo"] == "mapa_invalido"
+    # Atributo que no existe.
+    assert c.post(f"{API}bitacora/", {**base, "mapa": _pintado((0, 0, 5))}, format="json").status_code == 400
+    # Sin atributos.
+    assert c.post(f"{API}bitacora/", {**base, "mapa": {"atributos": []}}, format="json").status_code == 400
+
+
+def test_sin_elementos_no_hay_mapa(cliente, auxiliar, lab):
+    r = cliente(auxiliar).get(f"{API}bitacora/plantilla/", {"laboratorio": lab.id})
+    assert r.status_code == 400
+    assert "no tiene elementos" in r.data["mensaje"]
+
+
+def test_exportar_e_importar(cliente, auxiliar, lab_dibujado):
+    c = cliente(auxiliar)
+    datos = {"laboratorio": lab_dibujado.id, "titulo": "Revisión de noviembre", "mapa": _pintado((0, 0, 1))}
+    entrada = c.post(f"{API}bitacora/", datos, format="json").data
+    url = f"{API}bitacora/{entrada['id']}/exportar/"
+
+    jpg = c.get(url, {"formato": "jpg"})
+    assert jpg.status_code == 200
+    assert jpg["Content-Type"] == "image/jpeg"
+    assert jpg.content[:2] == b"\xff\xd8"
+    assert "attachment" in jpg["Content-Disposition"]
+    assert c.get(url, {"formato": "pdf"}).content[:4] == b"%PDF"
+    archivo = c.get(url, {"formato": "json"}).json()
+    assert archivo["formato"] == "labficct-bitacora"
+
+    # Importar en el mismo laboratorio (lo encuentra por el código del archivo).
+    r = c.post(f"{API}bitacora/importar/", {"archivo": archivo}, format="json")
+    assert r.status_code == 201, r.data
+    assert r.data["laboratorio"] == lab_dibujado.id
+    assert r.data["mapa"]["marcas"] == [{"fila": 0, "columna": 0, "atributo": 1}]
+    assert EntradaBitacora.objects.count() == 2
+
+    # Un archivo cualquiera no se importa.
+    r = c.post(f"{API}bitacora/importar/", {"archivo": {"hola": 1}}, format="json")
+    assert r.status_code == 400
+
+
+def test_entrada_sin_mapa_solo_se_exporta_como_archivo(cliente, auxiliar, lab):
+    c = cliente(auxiliar)
+    entrada = c.post(f"{API}bitacora/", {"laboratorio": lab.id, "titulo": "Limpieza"}, format="json").data
+    url = f"{API}bitacora/{entrada['id']}/exportar/"
+    assert c.get(url, {"formato": "pdf"}).status_code == 400
+    assert c.get(url, {"formato": "json"}).status_code == 200

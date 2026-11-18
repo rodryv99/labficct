@@ -21,7 +21,7 @@ import { EstadoError } from "../../components/feedback/Estados";
 import { PantallaCarga } from "../../components/feedback/PantallaCarga";
 import { IconoAgregar, IconoAnterior, IconoSiguiente } from "../../components/iconos/iconos";
 import { EncabezadoPagina } from "../../components/layout/EncabezadoPagina";
-import { aHora, aISO, aMinutos, desdeISO, diaCorto, fechaLarga, lunesDe, minutosAhora, sumarDias } from "../../lib/fechas";
+import { aHora, aISO, aMinutos, desdeISO, diaCorto, diaSemana, fechaLarga, lunesDe, minutosAhora, sumarDias } from "../../lib/fechas";
 import { useConfiguracion } from "../../lib/configuracion";
 import { useAccionUrl } from "../../lib/useAccionUrl";
 import { almacen } from "../../lib/utiles";
@@ -46,6 +46,13 @@ const useEstilos = makeStyles({
     display: "flex",
     alignItems: "center",
     gap: "4px",
+  },
+  // El nombre del día que se está viendo, junto al selector de fecha.
+  dia: {
+    marginLeft: "4px",
+    marginRight: "2px",
+    fontWeight: tokens.fontWeightSemibold,
+    whiteSpace: "nowrap",
   },
   espacio: {
     flex: 1,
@@ -201,6 +208,7 @@ export function PizarraPage() {
             <Tooltip content={vista === "semana" ? "Semana siguiente" : "Día siguiente"} relationship="label">
               <Button appearance="subtle" icon={<IconoSiguiente />} onClick={() => mover(paso)} />
             </Tooltip>
+            {vista === "dia" && <Caption1 className={estilos.dia}>{diaSemana(fecha)}</Caption1>}
             <Input
               type="date"
               aria-label="Fecha"

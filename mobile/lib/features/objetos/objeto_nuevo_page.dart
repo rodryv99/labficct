@@ -6,9 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/datos/proveedores.dart';
+import '../../core/dictado/dictado_frase.dart';
+import '../../core/dictado/nucleo.dart';
 import '../../core/network/api_cliente.dart';
 import '../../core/network/repositorio.dart';
 import '../../shared/widgets/comunes.dart';
+import 'dictado_objeto.dart';
 import 'objetos_page.dart';
 
 /// Registrar un objeto encontrado, con foto tomada en el momento.
@@ -83,6 +86,22 @@ class _ObjetoNuevoPageState extends ConsumerState<ObjetoNuevoPage> {
     setState(() => _fecha = elegida);
   }
 
+  void _aplicarDictado(ResultadoObjeto r) {
+    setState(() {
+      if (r.descripcion != null) _descripcion.text = r.descripcion!;
+      if (r.caracteristicas != null) _caracteristicas.text = r.caracteristicas!;
+      if (r.categoria != null) _categoria = r.categoria!;
+      if (r.laboratorio != null) _laboratorio = r.laboratorio;
+      if (r.lugar != null) _lugar.text = r.lugar!;
+      if (r.encontradoPor != null) _encontradoPor.text = r.encontradoPor!;
+      if (r.fechaHallazgo != null) {
+        // La fecha dictada no trae hora: se conserva la hora que ya estaba puesta.
+        final f = r.fechaHallazgo!;
+        _fecha = DateTime(f.year, f.month, f.day, _fecha.hour, _fecha.minute);
+      }
+    });
+  }
+
   Future<void> _guardar() async {
     FocusScope.of(context).unfocus();
     setState(() {
@@ -152,6 +171,25 @@ class _ObjetoNuevoPageState extends ConsumerState<ObjetoNuevoPage> {
                 decoration: BoxDecoration(color: esquema.errorContainer, borderRadius: BorderRadius.circular(10)),
                 child: Text(_error!, style: TextStyle(color: esquema.onErrorContainer)),
               ),
+
+            DictadoFrase<ResultadoObjeto>(
+              ejemplo: 'Ej.: Un celular negro con funda roja, encontrado en el laboratorio 41 hoy, '
+                  'lo entregó Juan.',
+              placeholder: 'Qué objeto es, color o señas, dónde y cuándo apareció, quién lo entregó',
+              sustantivo: 'un objeto perdido',
+              interpretar: (frase) {
+                final ahora = DateTime.now();
+                return interpretarDictadoObjeto(
+                  frase,
+                  ContextoObjeto(
+                    hoy: DateTime(ahora.year, ahora.month, ahora.day),
+                    laboratorios: [for (final l in laboratorios) LabCtx(l.id, l.codigo, l.nombre)],
+                  ),
+                );
+              },
+              onAplicar: _aplicarDictado,
+            ),
+            const SizedBox(height: 14),
 
             // ── Foto ──
             AspectRatio(

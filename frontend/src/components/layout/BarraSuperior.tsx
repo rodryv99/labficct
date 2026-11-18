@@ -15,7 +15,7 @@ import {
 } from "@fluentui/react-components";
 
 import { useTema } from "../../app/TemaProvider";
-import { identidad } from "../../app/tema";
+import { fuentes, identidad } from "../../app/tema";
 import { useSesion } from "../../app/sesion";
 import { env } from "../../config/env";
 import { Campana } from "../../features/notificaciones/Campana";
@@ -29,7 +29,7 @@ const useEstilos = makeStyles({
     alignItems: "center",
     gap: "8px",
     padding: "0 12px 0 8px",
-    backgroundColor: identidad.azulFicct,
+    backgroundColor: identidad.barra,
     color: "#ffffff",
   },
   marca: {
@@ -44,8 +44,10 @@ const useEstilos = makeStyles({
     width: "auto",
   },
   nombre: {
-    fontSize: tokens.fontSizeBase400,
+    fontFamily: fuentes.titulos,
+    fontSize: "22px",
     fontWeight: tokens.fontWeightSemibold,
+    letterSpacing: "0.01em",
     whiteSpace: "nowrap",
     "@media (max-width: 640px)": {
       display: "none",

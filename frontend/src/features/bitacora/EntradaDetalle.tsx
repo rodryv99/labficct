@@ -1,4 +1,15 @@
-import { Body1, Button, Caption1, makeStyles, tokens } from "@fluentui/react-components";
+import {
+  Body1,
+  Button,
+  Caption1,
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
+  makeStyles,
+  tokens,
+} from "@fluentui/react-components";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -8,9 +19,10 @@ import { EtiquetaEstado } from "../../components/datos/Etiquetas";
 import { ConfirmarDialogo } from "../../components/feedback/ConfirmarDialogo";
 import { useNotificar } from "../../components/feedback/notificaciones";
 import { PanelFormulario } from "../../components/formularios/PanelFormulario";
-import { IconoEditar, IconoEliminar } from "../../components/iconos/iconos";
+import { IconoDescargar, IconoEditar, IconoEliminar } from "../../components/iconos/iconos";
 import { fechaHora } from "../../lib/fechas";
-import { TONO_BITACORA, eliminarEntrada } from "./api";
+import { type FormatoExportar, TONO_BITACORA, descargarEntrada, eliminarEntrada } from "./api";
+import { MapaBitacora } from "./MapaBitacora";
 
 const useEstilos = makeStyles({
   cuadro: {
@@ -30,6 +42,9 @@ const useEstilos = makeStyles({
   },
   espacio: {
     flex: 1,
+  },
+  titulo: {
+    fontWeight: tokens.fontWeightSemibold,
   },
 });
 
@@ -59,7 +74,28 @@ export function EntradaDetalle({ entrada, onCerrar, onEditar }: Props) {
     },
   });
 
+  const exportar = useMutation({
+    mutationFn: (formato: FormatoExportar) => descargarEntrada(entrada!, formato),
+    onError: (error) => notificar.error("No se pudo exportar", mensajeDeError(error)),
+  });
+
   const e = entrada;
+  const botonExportar = e && (
+    <Menu>
+      <MenuTrigger disableButtonEnhancement>
+        <Button icon={<IconoDescargar />} disabled={exportar.isPending}>
+          {exportar.isPending ? "Exportando…" : "Exportar"}
+        </Button>
+      </MenuTrigger>
+      <MenuPopover>
+        <MenuList>
+          {e.mapa && <MenuItem onClick={() => exportar.mutate("jpg")}>Imagen (JPG)</MenuItem>}
+          {e.mapa && <MenuItem onClick={() => exportar.mutate("pdf")}>PDF</MenuItem>}
+          <MenuItem onClick={() => exportar.mutate("json")}>Archivo de bitácora (para importar)</MenuItem>
+        </MenuList>
+      </MenuPopover>
+    </Menu>
+  );
 
   return (
     <>
@@ -68,16 +104,22 @@ export function EntradaDetalle({ entrada, onCerrar, onEditar }: Props) {
         titulo={e?.titulo ?? "Entrada de bitácora"}
         subtitulo={e ? `${e.laboratorio_codigo} · ${fechaHora(e.fecha)}` : undefined}
         onCerrar={onCerrar}
+        tamano={e?.mapa ? "large" : "medium"}
         pie={
-          e?.editable ? (
+          e ? (
             <>
-              <Button appearance="primary" icon={<IconoEditar />} onClick={() => onEditar(e)}>
-                Editar
-              </Button>
+              {e.editable && (
+                <Button appearance="primary" icon={<IconoEditar />} onClick={() => onEditar(e)}>
+                  Editar
+                </Button>
+              )}
+              {botonExportar}
               <span className={estilos.espacio} />
-              <Button appearance="subtle" icon={<IconoEliminar />} onClick={() => setEliminando(true)}>
-                Eliminar
-              </Button>
+              {e.editable && (
+                <Button appearance="subtle" icon={<IconoEliminar />} onClick={() => setEliminando(true)}>
+                  Eliminar
+                </Button>
+              )}
             </>
           ) : undefined
         }
@@ -111,6 +153,12 @@ export function EntradaDetalle({ entrada, onCerrar, onEditar }: Props) {
               <Body1 className={estilos.texto}>{e.descripcion}</Body1>
             ) : (
               <Caption1 className={estilos.secundario}>Sin descripción.</Caption1>
+            )}
+            {e.mapa && (
+              <>
+                <Body1 className={estilos.titulo}>Mapa del laboratorio</Body1>
+                <MapaBitacora mapa={e.mapa} atributos={e.mapa.atributos} marcas={e.mapa.marcas} />
+              </>
             )}
             {Date.parse(e.actualizado_en) - Date.parse(e.creado_en) > 60_000 && (
               <Caption1 className={estilos.secundario}>Editada el {fechaHora(e.actualizado_en)}.</Caption1>

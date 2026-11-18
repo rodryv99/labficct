@@ -3,6 +3,7 @@ import { NavLink } from "react-router";
 
 import { navegacionPermitida } from "../../app/navegacion";
 import { useSesion } from "../../app/sesion";
+import { identidad } from "../../app/tema";
 import { IconoMenu } from "../iconos/iconos";
 
 const useEstilos = makeStyles({
@@ -12,7 +13,7 @@ const useEstilos = makeStyles({
     display: "flex",
     flexDirection: "column",
     backgroundColor: tokens.colorNeutralBackground1,
-    borderRight: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderRight: `1.5px solid ${tokens.colorNeutralStroke2}`,
     transitionProperty: "width",
     transitionDuration: tokens.durationNormal,
     transitionTimingFunction: tokens.curveEasyEase,
@@ -37,6 +38,7 @@ const useEstilos = makeStyles({
   tituloGrupo: {
     padding: "0 12px 4px",
     color: tokens.colorNeutralForeground3,
+    fontWeight: tokens.fontWeightMedium,
     whiteSpace: "nowrap",
   },
   enlace: {
@@ -49,7 +51,7 @@ const useEstilos = makeStyles({
     borderRadius: tokens.borderRadiusMedium,
     color: tokens.colorNeutralForeground2,
     textDecorationLine: "none",
-    fontSize: tokens.fontSizeBase300,
+    fontSize: "15px",
     whiteSpace: "nowrap",
     ":hover": {
       backgroundColor: tokens.colorSubtleBackgroundHover,
@@ -60,23 +62,25 @@ const useEstilos = makeStyles({
       outlineOffset: "-2px",
     },
   },
+  // La pantalla actual se marca como un punto en el plano: fondo de papel y un
+  // cuadrito dorado a la izquierda.
   activo: {
-    backgroundColor: tokens.colorBrandBackground2,
-    color: tokens.colorBrandForeground1,
+    backgroundColor: tokens.colorNeutralBackground2,
+    color: tokens.colorNeutralForeground1,
     fontWeight: tokens.fontWeightSemibold,
     ":hover": {
-      backgroundColor: tokens.colorBrandBackground2Hover,
-      color: tokens.colorBrandForeground1,
+      backgroundColor: tokens.colorNeutralBackground3,
+      color: tokens.colorNeutralForeground1,
     },
     "::before": {
       content: '""',
       position: "absolute",
-      left: "0",
-      top: "8px",
-      bottom: "8px",
-      width: "3px",
-      borderRadius: "2px",
-      backgroundColor: tokens.colorBrandForeground1,
+      left: "-3px",
+      top: "50%",
+      width: "7px",
+      height: "7px",
+      transform: "translateY(-50%)",
+      backgroundColor: identidad.acento,
     },
   },
   icono: {

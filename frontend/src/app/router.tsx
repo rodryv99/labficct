@@ -1,4 +1,4 @@
-import { Navigate, createBrowserRouter } from "react-router";
+import { Navigate, createBrowserRouter, useLocation } from "react-router";
 
 import { AppShell } from "../components/layout/AppShell";
 import { AsistenciaPage } from "../features/asistencia/AsistenciaPage";
@@ -6,12 +6,17 @@ import { LoginPage } from "../features/auth/LoginPage";
 import { BitacoraPage } from "../features/bitacora/BitacoraPage";
 import { ElementosPage } from "../features/elementos/ElementosPage";
 import { HorariosPage } from "../features/horarios/HorariosPage";
+import { InventarioPage } from "../features/inventario/InventarioPage";
 import { LaboratorioDetallePage } from "../features/laboratorios/LaboratorioDetallePage";
 import { LaboratoriosPage } from "../features/laboratorios/LaboratoriosPage";
+import { LandingPage } from "../features/landing/LandingPage";
+import { MarcacionesPage } from "../features/marcaciones/MarcacionesPage";
 import { ObjetosPerdidosPage } from "../features/objetos-perdidos/ObjetosPerdidosPage";
 import { PizarraPage } from "../features/pizarra/PizarraPage";
 import { PreferenciasPage } from "../features/preferencias/PreferenciasPage";
+import { ReportesPage } from "../features/reportes/ReportesPage";
 import { ReservasPage } from "../features/reservas/ReservasPage";
+import { RespaldosPage } from "../features/respaldos/RespaldosPage";
 import { RevisionesPage } from "../features/revisiones/RevisionesPage";
 import { NoEncontradoPage, SinPermisoPage } from "../features/sistema/SinPermisoPage";
 import { TareasPage } from "../features/tareas/TareasPage";
@@ -24,15 +29,26 @@ function Inicio() {
   return <Navigate to={primeraRuta(puede)} replace />;
 }
 
+/**
+ * La raíz del sitio. Sin sesión, "/" muestra la página de inicio pública;
+ * cualquier otra ruta sigue pidiendo iniciar sesión, igual que antes.
+ */
+function Raiz() {
+  const { estado } = useSesion();
+  const ubicacion = useLocation();
+  if (estado === "anonimo" && ubicacion.pathname === "/") return <LandingPage />;
+  return (
+    <RutaProtegida>
+      <AppShell />
+    </RutaProtegida>
+  );
+}
+
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
   {
     path: "/",
-    element: (
-      <RutaProtegida>
-        <AppShell />
-      </RutaProtegida>
-    ),
+    element: <Raiz />,
     children: [
       { index: true, element: <Inicio /> },
       {
@@ -136,6 +152,38 @@ export const router = createBrowserRouter([
         element: (
           <ConPermiso permiso="revisiones.ver">
             <RevisionesPage />
+          </ConPermiso>
+        ),
+      },
+      {
+        path: "inventario",
+        element: (
+          <ConPermiso permiso="inventario.ver">
+            <InventarioPage />
+          </ConPermiso>
+        ),
+      },
+      {
+        path: "control-asistencia",
+        element: (
+          <ConPermiso permiso="marcaciones.gestionar">
+            <MarcacionesPage />
+          </ConPermiso>
+        ),
+      },
+      {
+        path: "respaldos",
+        element: (
+          <ConPermiso permiso="respaldos.ver">
+            <RespaldosPage />
+          </ConPermiso>
+        ),
+      },
+      {
+        path: "reportes",
+        element: (
+          <ConPermiso permiso="reportes.ver">
+            <ReportesPage />
           </ConPermiso>
         ),
       },

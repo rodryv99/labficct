@@ -433,8 +433,51 @@ export interface EntradaBitacora {
   autor_nombre: string;
   /** Si quien tiene la sesión puede editarla o borrarla. */
   editable: boolean;
+  /** Mapa pintado estilo OrganiLab (opcional). */
+  mapa: MapaBitacora | null;
   creado_en: string;
   actualizado_en: string;
+}
+
+/** Un elemento del laboratorio tal como estaba cuando se hizo el mapa (es una copia). */
+export interface CeldaMapa {
+  fila: number;
+  columna: number;
+  tipo: number | null;
+  tipo_nombre: string;
+  icono: string;
+  color: string;
+  etiqueta: string;
+  ip: string;
+  mac: string;
+  codigo_activo: string;
+  especificaciones: string;
+  descripcion: string;
+  estado: string;
+}
+
+/** Un "color" con nombre para pintar: p. ej. Funciona (verde) o Con falla (rojo). */
+export interface AtributoMapa {
+  nombre: string;
+  color: string;
+}
+
+/** Casilla pintada: `atributo` es la posición en la lista de atributos. */
+export interface MarcaMapa {
+  fila: number;
+  columna: number;
+  atributo: number;
+}
+
+/** Solo el rectángulo que usan los elementos; `origen` dice dónde empieza en la grilla. */
+export interface MapaBitacora {
+  version: number;
+  filas: number;
+  columnas: number;
+  origen: { fila: number; columna: number };
+  celdas: CeldaMapa[];
+  atributos: AtributoMapa[];
+  marcas: MarcaMapa[];
 }
 
 export type UnidadFrecuencia = "dias" | "semanas" | "meses";
@@ -503,6 +546,8 @@ export interface Tarea {
   completada_por_nombre: string;
   revision: number | null;
   revision_titulo: string;
+  /** Id de la verificación de inventario que creó la tarea (su avance se calcula solo). */
+  verificacion: number | null;
   total_avances: number;
   ultimo_avance: AvanceTarea | null;
 }
@@ -510,4 +555,279 @@ export interface Tarea {
 export interface TareaDetalle extends Tarea {
   /** Del más viejo al más nuevo. */
   avances: AvanceTarea[];
+}
+
+// ── Inventario de activos ──
+export interface TipoActivo {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  activo: boolean;
+  /** Sin contar los dados de baja. */
+  total_activos: number;
+}
+
+export type TipoLugar = "laboratorio" | "deposito" | "otro";
+
+export interface Lugar {
+  id: number;
+  nombre: string;
+  tipo: TipoLugar;
+  tipo_nombre: string;
+  /** Si es el lugar de un laboratorio (se crea y se renombra solo). */
+  laboratorio: number | null;
+  descripcion: string;
+  activo: boolean;
+  total_activos: number;
+}
+
+export type EstadoActivo = "operativo" | "danado" | "en_reparacion" | "baja";
+export type TipoMovimiento = "alta" | "traslado" | "estado" | "baja";
+
+export interface CambioDato {
+  campo: string;
+  antes: string;
+  despues: string;
+}
+
+/** Una corrección: quién cambió qué dato del activo (o de uno de sus movimientos). */
+export interface CambioInventario {
+  id: number;
+  movimiento: number | null;
+  usuario_nombre: string;
+  cambios: CambioDato[];
+  creado_en: string;
+}
+
+export interface MovimientoActivo {
+  id: number;
+  activo: number;
+  activo_codigo: string;
+  activo_descripcion: string;
+  tipo: TipoMovimiento;
+  tipo_nombre: string;
+  fecha: string;
+  lugar_origen: number | null;
+  lugar_origen_nombre: string;
+  lugar_destino: number | null;
+  lugar_destino_nombre: string;
+  estado_anterior: EstadoActivo | "";
+  estado_anterior_nombre: string;
+  estado_nuevo: EstadoActivo | "";
+  estado_nuevo_nombre: string;
+  motivo: string;
+  documento: string;
+  registrado_por: string;
+  corregido: boolean;
+  creado_en: string;
+}
+
+export interface Activo {
+  id: number;
+  codigo: string;
+  descripcion: string;
+  tipo: number;
+  tipo_nombre: string;
+  marca: string;
+  modelo: string;
+  serie: string;
+  fecha_adquisicion: string | null;
+  estado: EstadoActivo;
+  estado_nombre: string;
+  lugar: number;
+  lugar_nombre: string;
+  observaciones: string;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface ActivoDetalle extends Activo {
+  creado_por_nombre: string;
+  /** Casillas de laboratorios que llevan este mismo código de activo. */
+  en_mapa: { laboratorio: number; laboratorio_codigo: string; etiqueta: string }[];
+  /** Del más nuevo al más viejo. */
+  movimientos: MovimientoActivo[];
+  cambios: CambioInventario[];
+}
+
+export type EstadoVerificacion = "abierta" | "cerrada" | "cancelada";
+export type ResultadoVerificacion = "pendiente" | "esta" | "falta" | "otro_lugar" | "danado";
+
+export interface ConteoVerificacion {
+  total: number;
+  revisados: number;
+  pendientes: number;
+  esta: number;
+  falta: number;
+  otro_lugar: number;
+  danado: number;
+}
+
+export interface ItemVerificacion {
+  id: number;
+  activo: number;
+  codigo: string;
+  descripcion: string;
+  tipo_nombre: string;
+  lugar: number | null;
+  lugar_nombre: string;
+  resultado: ResultadoVerificacion;
+  resultado_nombre: string;
+  lugar_encontrado: number | null;
+  lugar_encontrado_nombre: string;
+  nota: string;
+  verificado_por_nombre: string;
+  verificado_en: string | null;
+}
+
+export interface Verificacion {
+  id: number;
+  titulo: string;
+  instrucciones: string;
+  /** Qué se pidió verificar, en palabras: "Todos los activos", "Lugar: LAB-41"… */
+  alcance: string;
+  estado: EstadoVerificacion;
+  estado_nombre: string;
+  responsables: number[];
+  responsables_detalle: { id: number; nombre_completo: string }[];
+  fecha_limite: string | null;
+  tarea: number | null;
+  conclusion: string;
+  creado_por_nombre: string;
+  creado_en: string;
+  cerrada_por_nombre: string;
+  cerrada_en: string | null;
+  conteo: ConteoVerificacion;
+  /** Porcentaje de activos ya revisados. */
+  progreso: number;
+  /** Si quien tiene la sesión puede marcar los activos. */
+  puede_marcar: boolean;
+}
+
+export interface VerificacionDetalle extends Verificacion {
+  items: ItemVerificacion[];
+}
+
+// ── Control de asistencia de auxiliares ──
+export interface LugarAsistencia {
+  id: number;
+  nombre: string;
+  referencia: string;
+  latitud: number;
+  longitud: number;
+  /** Radio (en metros) dentro del cual vale la marcación. */
+  radio_m: number;
+  /** El lugar de quienes no tienen uno propio. */
+  predeterminado: boolean;
+  activo: boolean;
+  /** Cuántos auxiliares lo tienen como lugar propio. */
+  asignados: number;
+}
+
+export type SituacionAuxiliar = "sin_marcar" | "presente" | "salio";
+
+export interface AuxiliarAsistencia {
+  id: number;
+  nombre_completo: string;
+  email: string;
+  /** Su lugar propio; null = usa el predeterminado. */
+  lugar: number | null;
+  /** Nombre del lugar donde marca (el propio o el predeterminado); vacío si no hay ninguno. */
+  lugar_nombre: string;
+  lugar_efectivo: number | null;
+  usa_predeterminado: boolean;
+  /** Su horario de trabajo propio; null = sin horario. */
+  horario: number | null;
+  horario_nombre: string;
+  situacion: SituacionAuxiliar;
+  entrada_en: string | null;
+  salida_en: string | null;
+  minutos_hoy: number;
+}
+
+/** Un tramo de un día dentro de un horario de trabajo. Hora en "HH:MM" o "HH:MM:SS". */
+export interface BloqueHorario {
+  /** 0 = lunes … 6 = domingo. */
+  dia: number;
+  inicio: string;
+  fin: string;
+}
+
+export interface HorarioTrabajo {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  activo: boolean;
+  bloques: BloqueHorario[];
+  /** Cuántos auxiliares lo tienen asignado. */
+  asignados: number;
+}
+
+export interface Marcacion {
+  id: number;
+  usuario: number;
+  usuario_nombre: string;
+  lugar: number;
+  lugar_nombre: string;
+  lugar_latitud: number;
+  lugar_longitud: number;
+  radio_m: number;
+  fecha: string;
+  entrada_en: string;
+  entrada_latitud: number;
+  entrada_longitud: number;
+  entrada_precision_m: number | null;
+  entrada_distancia_m: number;
+  salida_en: string | null;
+  salida_latitud: number | null;
+  salida_longitud: number | null;
+  salida_precision_m: number | null;
+  salida_distancia_m: number | null;
+  /** La salida la puso el Admin (sin GPS ni huella). */
+  salida_manual: boolean;
+  nota: string;
+  /** Turno esperado ese día ("HH:MM:SS") o null si marcó sin horario. */
+  turno_inicio: string | null;
+  turno_fin: string | null;
+  /** Minutos de retraso en la entrada (0 = puntual). */
+  retraso_min: number;
+  /** Minutos que salió antes del fin del turno. */
+  salida_temprana_min: number;
+  abierta: boolean;
+  minutos: number | null;
+}
+
+export interface ResumenAsistencia {
+  usuario: number;
+  usuario_nombre: string;
+  dias: number;
+  marcaciones: number;
+  minutos: number;
+  horas: string;
+  sin_salida: number;
+  salidas_manuales: number;
+  retrasos: number;
+  retraso_total_min: number;
+  retraso_max_min: number;
+  retraso_promedio_min: number;
+}
+
+export interface Respaldo {
+  id: number;
+  archivo: string;
+  tamano_bytes: number;
+  /** Tamaño legible, p. ej. "2.4 MB". */
+  tamano: string;
+  origen: "manual" | "automatico";
+  base_datos: string;
+  nota: string;
+  creado_en: string;
+  creado_por_nombre: string;
+}
+
+export interface EstadoRespaldos {
+  /** Si el servidor puede crear respaldos (si tiene pg_dump). */
+  pg_dump_disponible: boolean;
+  maximos: number;
+  total: number;
 }

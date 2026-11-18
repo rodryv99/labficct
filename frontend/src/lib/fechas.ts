@@ -35,6 +35,10 @@ export function fechaHora(fecha: string): string {
   return format(parseISO(fecha), "d MMM yyyy, HH:mm", { locale: es });
 }
 
+export function diaSemana(fecha: Date): string {
+  const texto = format(fecha, "EEEE", { locale: es });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
 export function diaCorto(fecha: Date): string {
   return format(fecha, "EEE d", { locale: es });
 }

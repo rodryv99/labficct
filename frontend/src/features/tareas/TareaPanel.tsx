@@ -7,6 +7,7 @@ import {
   Field,
   Input,
   MessageBar,
+  MessageBarActions,
   MessageBarBody,
   ProgressBar,
   Select,
@@ -19,6 +20,7 @@ import {
 } from "@fluentui/react-components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 
 import { mensajeDeError } from "../../api/errores";
 import type { EstadoTarea, PrioridadTarea, TareaDetalle } from "../../api/tipos";
@@ -33,6 +35,8 @@ import { ESTADOS_TAREA, PRIORIDADES_TAREA, ROLES, etiquetaDe } from "../../lib/c
 import { relativo } from "../../lib/fechas";
 import { estadoCampo, useFormulario } from "../../lib/useFormulario";
 import { listarLaboratoriosTodos } from "../laboratorios/api";
+import { PanelDictado } from "../dictado/PanelDictado";
+import { type ResultadoTarea, interpretarDictadoTarea } from "./dictadoTarea";
 import { opcionesUsuarios } from "../usuarios/api";
 import {
   type DatosTarea,
@@ -177,6 +181,7 @@ interface Props {
 /** Detalle de una tarjeta del pizarrón: datos editables, estado y avances. También crea tareas nuevas. */
 export function TareaPanel({ abierto, id, onCerrar }: Props) {
   const estilos = useEstilos();
+  const navegar = useNavigate();
   const notificar = useNotificar();
   const queryClient = useQueryClient();
   const { puede, usuario } = useSesion();
@@ -202,6 +207,18 @@ export function TareaPanel({ abierto, id, onCerrar }: Props) {
     queryFn: () => opcionesUsuarios("auxiliar,admin"),
     enabled: abierto && gestionar,
   });
+
+  // Dictado por voz: rellena el formulario desde una frase. No guarda nada.
+  const aplicarDictado = (r: ResultadoTarea) =>
+    f.setValores((a) => ({
+      ...a,
+      titulo: r.titulo ?? a.titulo,
+      descripcion: r.descripcion ?? a.descripcion,
+      prioridad: r.prioridad ?? a.prioridad,
+      laboratorio: r.laboratorio ?? a.laboratorio,
+      responsables: r.responsables ?? a.responsables,
+      fecha_limite: r.fecha_limite ?? a.fecha_limite,
+    }));
 
   useEffect(() => {
     if (!abierto) {
@@ -312,6 +329,8 @@ export function TareaPanel({ abierto, id, onCerrar }: Props) {
   const valorProgreso = progreso ?? t?.progreso ?? 0;
   const hayAvance = Boolean(texto.trim()) || (progreso !== null && progreso !== t?.progreso);
   const ocupado = guardar.isPending || mover.isPending || anotar.isPending;
+  // Tarea de una verificación de inventario abierta: el estado y el avance los calcula la verificación.
+  const deVerificacion = Boolean(t && t.verificacion !== null && t.estado !== "hecha");
   const deshabilitado = !gestionar || guardar.isPending;
 
   const campos = (
@@ -321,6 +340,26 @@ export function TareaPanel({ abierto, id, onCerrar }: Props) {
           <MessageBarBody>{e.general}</MessageBarBody>
         </MessageBar>
       )}
+      {esNueva && (
+        <PanelDictado<ResultadoTarea>
+          etiqueta="Dicta o escribe la tarea en una frase"
+          ejemplo="Ej.: Instalar Office en el laboratorio 41, prioridad alta, responsable Ana, para el viernes."
+          placeholder="Qué hay que hacer, dónde, prioridad, responsables y para cuándo"
+          sustantivo="una tarea"
+          abierto={abierto}
+          interpretar={(texto) =>
+            interpretarDictadoTarea(texto, {
+              hoy: new Date(),
+              laboratorios: (laboratorios.data ?? [])
+                .filter((l) => l.activo)
+                .map((l) => ({ id: l.id, codigo: l.codigo, nombre: l.nombre })),
+              personas: (personas.data ?? []).map((pe) => ({ id: pe.id, nombre: pe.nombre_completo })),
+            })
+          }
+          onAplicar={aplicarDictado}
+        />
+      )}
+
       <Field label="Título" required {...estadoCampo(e.titulo)}>
         <Input
           value={v.titulo}
@@ -459,6 +498,22 @@ export function TareaPanel({ abierto, id, onCerrar }: Props) {
                 </MessageBar>
               )}
 
+              {t.verificacion !== null && (
+                <MessageBar intent="info" layout="multiline">
+                  <MessageBarBody>
+                    Es una verificación de inventario. Avanza sola al marcar los activos y queda hecha cuando el Admin
+                    la cierra en Inventario.
+                  </MessageBarBody>
+                  {puede("inventario.ver") && (
+                    <MessageBarActions>
+                      <Button size="small" onClick={() => navegar(`/inventario?verificacion=${t.verificacion}`)}>
+                        Abrir verificación
+                      </Button>
+                    </MessageBarActions>
+                  )}
+                </MessageBar>
+              )}
+
               <div className={estilos.seccion}>
                 <Caption1 className={estilos.tituloSeccion}>Estado</Caption1>
                 <div className={estilos.estados} role="group" aria-label="Estado de la tarea">
@@ -467,7 +522,7 @@ export function TareaPanel({ abierto, id, onCerrar }: Props) {
                       key={estado.valor}
                       size="small"
                       checked={t.estado === estado.valor}
-                      disabled={!gestionar || ocupado}
+                      disabled={!gestionar || ocupado || deVerificacion}
                       onClick={() => t.estado !== estado.valor && mover.mutate(estado.valor)}
                     >
                       {estado.etiqueta}
@@ -502,16 +557,18 @@ export function TareaPanel({ abierto, id, onCerrar }: Props) {
                       onChange={(_, d) => setTexto(d.value)}
                     />
                   </Field>
-                  <Field label={`Progreso: ${valorProgreso}%`}>
-                    <Slider
-                      min={0}
-                      max={100}
-                      step={10}
-                      value={valorProgreso}
-                      disabled={anotar.isPending}
-                      onChange={(_, d) => setProgreso(d.value)}
-                    />
-                  </Field>
+                  {!deVerificacion && (
+                    <Field label={`Progreso: ${valorProgreso}%`}>
+                      <Slider
+                        min={0}
+                        max={100}
+                        step={10}
+                        value={valorProgreso}
+                        disabled={anotar.isPending}
+                        onChange={(_, d) => setProgreso(d.value)}
+                      />
+                    </Field>
+                  )}
                   <div className={estilos.anotarPie}>
                     <Button icon={<IconoEnviar />} disabled={!hayAvance || ocupado} onClick={() => anotar.mutate()}>
                       {anotar.isPending ? "Anotando…" : "Anotar"}

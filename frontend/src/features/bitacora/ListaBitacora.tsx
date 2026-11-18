@@ -1,21 +1,23 @@
 import { Button, Caption1, Input, SearchBox, Select, makeStyles, tokens } from "@fluentui/react-components";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useState } from "react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
+import { mensajeDeError } from "../../api/errores";
 import type { EntradaBitacora } from "../../api/tipos";
 import { useSesion } from "../../app/sesion";
 import { EtiquetaEstado } from "../../components/datos/Etiquetas";
 import { Paginacion } from "../../components/datos/Paginacion";
 import { type Columna, TablaDatos } from "../../components/datos/TablaDatos";
 import { EstadoVacio } from "../../components/feedback/Estados";
-import { IconoAgregar, IconoBitacora } from "../../components/iconos/iconos";
+import { useNotificar } from "../../components/feedback/notificaciones";
+import { IconoAgregar, IconoBitacora, IconoImportar } from "../../components/iconos/iconos";
 import { BarraFiltros } from "../../components/layout/EncabezadoPagina";
 import { TIPOS_BITACORA } from "../../lib/constantes";
 import { fechaHora } from "../../lib/fechas";
 import { useAccionUrl } from "../../lib/useAccionUrl";
 import { useDebounce } from "../../lib/utiles";
 import { listarLaboratoriosTodos } from "../laboratorios/api";
-import { TONO_BITACORA, listarBitacora } from "./api";
+import { TONO_BITACORA, importarEntrada, listarBitacora } from "./api";
 import { EntradaDetalle } from "./EntradaDetalle";
 import { EntradaPanel } from "./EntradaPanel";
 
@@ -48,6 +50,18 @@ const useEstilos = makeStyles({
   espacio: {
     flex: 1,
   },
+  acciones: {
+    display: "flex",
+    gap: "8px",
+  },
+  titulo: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+  },
+  oculto: {
+    display: "none",
+  },
 });
 
 type Panel = { tipo: "formulario"; entrada: EntradaBitacora | null } | { tipo: "detalle"; entrada: EntradaBitacora };
@@ -73,6 +87,9 @@ export function ListaBitacora({ laboratorioId, encabezado }: Props) {
   const [hasta, setHasta] = useState("");
   const [panel, setPanel] = useState<Panel | null>(null);
   const busquedaRetrasada = useDebounce(busqueda);
+  const notificar = useNotificar();
+  const queryClient = useQueryClient();
+  const selectorArchivo = useRef<HTMLInputElement>(null);
 
   useAccionUrl(["nuevo"], (p) => {
     if (p.nuevo && gestionar && !fijo) setPanel({ tipo: "formulario", entrada: null });
@@ -98,6 +115,35 @@ export function ListaBitacora({ laboratorioId, encabezado }: Props) {
         hasta: hasta || undefined,
       }),
     placeholderData: keepPreviousData,
+  });
+
+  // Importar un archivo de bitácora exportado (también desde otro equipo).
+  const destino = fijo ? laboratorioId : laboratorio ? Number(laboratorio) : undefined;
+  const importar = useMutation({
+    mutationFn: async (archivo: File) => {
+      let contenido: unknown;
+      try {
+        contenido = JSON.parse(await archivo.text());
+      } catch {
+        throw new Error("El archivo no es una bitácora de Laboratorios FICCT.");
+      }
+      return importarEntrada(contenido, destino);
+    },
+    onSuccess: (entrada) => {
+      notificar.exito("Bitácora importada", `${entrada.titulo} · ${entrada.laboratorio_codigo}`);
+      void queryClient.invalidateQueries({ queryKey: ["bitacora"] });
+      setPanel({ tipo: "detalle", entrada });
+    },
+    onError: (e) => {
+      // Un JSON roto no es un error del servidor: se muestra el mensaje tal cual.
+      const texto = e instanceof Error && !("isAxiosError" in e) ? e.message : mensajeDeError(e);
+      notificar.error(
+        "No se pudo importar",
+        destino === undefined
+          ? `${texto} Puedes filtrar por un laboratorio o importarla desde su pestaña Bitácora.`
+          : texto,
+      );
+    },
   });
 
   const columnas: Columna<EntradaBitacora>[] = [
@@ -128,7 +174,10 @@ export function ListaBitacora({ laboratorioId, encabezado }: Props) {
       titulo: "Qué pasó",
       render: (e) => (
         <div className={estilos.celda}>
-          <span className={estilos.fuerte}>{e.titulo}</span>
+          <span className={estilos.titulo}>
+            <span className={estilos.fuerte}>{e.titulo}</span>
+            {e.mapa && <EtiquetaEstado tono="info">Con mapa</EtiquetaEstado>}
+          </span>
           {e.descripcion && <Caption1 className={estilos.secundario}>{e.descripcion}</Caption1>}
           {e.elementos && <Caption1 className={estilos.secundario}>Elementos: {e.elementos}</Caption1>}
         </div>
@@ -138,9 +187,29 @@ export function ListaBitacora({ laboratorioId, encabezado }: Props) {
   ];
 
   const botonRegistrar = gestionar && (
-    <Button appearance="primary" icon={<IconoAgregar />} onClick={() => setPanel({ tipo: "formulario", entrada: null })}>
-      Registrar
-    </Button>
+    <span className={estilos.acciones}>
+      <Button
+        icon={<IconoImportar />}
+        disabled={importar.isPending}
+        onClick={() => selectorArchivo.current?.click()}
+      >
+        {importar.isPending ? "Importando…" : "Importar"}
+      </Button>
+      <input
+        ref={selectorArchivo}
+        type="file"
+        accept=".json,application/json"
+        className={estilos.oculto}
+        onChange={(ev) => {
+          const archivo = ev.target.files?.[0];
+          ev.target.value = "";
+          if (archivo) importar.mutate(archivo);
+        }}
+      />
+      <Button appearance="primary" icon={<IconoAgregar />} onClick={() => setPanel({ tipo: "formulario", entrada: null })}>
+        Registrar
+      </Button>
+    </span>
   );
   const conFiltros = Boolean(busquedaRetrasada || laboratorio || tipo || desde || hasta);
 

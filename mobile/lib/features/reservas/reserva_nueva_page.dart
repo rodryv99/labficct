@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:speech_to_text/speech_recognition_error.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../core/datos/proveedores.dart';
 import '../../core/modelos/modelos.dart';
@@ -9,6 +11,7 @@ import '../../core/network/api_cliente.dart';
 import '../../core/network/repositorio.dart';
 import '../../shared/widgets/comunes.dart';
 import '../../shared/widgets/seleccion.dart';
+import 'dictado.dart';
 
 String _hhmm(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 int _minutos(TimeOfDay t) => t.hour * 60 + t.minute;
@@ -81,13 +84,199 @@ class _ReservaNuevaPageState extends ConsumerState<ReservaNuevaPage> {
   String? _errorGeneral;
   Map<String, String> _errores = {};
 
+  // ── Dictado por voz ──
+  final _frase = TextEditingController();
+  final SpeechToText _voz = SpeechToText();
+  bool _vozDisponible = false;
+  bool _escuchando = false;
+  String _parcial = '';
+  String? _errorVoz;
+  ResultadoDictado? _entendido;
+
+  @override
+  void initState() {
+    super.initState();
+    _prepararVoz();
+  }
+
   @override
   void dispose() {
     _titulo.dispose();
     _descripcion.dispose();
     _externo.dispose();
     _contacto.dispose();
+    _frase.dispose();
+    _voz.cancel();
     super.dispose();
+  }
+
+  // ── Dictado ──
+  Future<void> _prepararVoz() async {
+    try {
+      final ok = await _voz.initialize(
+        onError: (SpeechRecognitionError e) {
+          if (!mounted) return;
+          setState(() {
+            _escuchando = false;
+            _errorVoz = _mensajeVoz(e.errorMsg);
+          });
+        },
+        onStatus: (estado) {
+          if (!mounted) return;
+          // El guard _escuchando evita rellenar dos veces: el reconocedor emite
+          // 'notListening' y 'done' al terminar.
+          if ((estado == 'done' || estado == 'notListening') && _escuchando) {
+            final texto = _parcial.trim();
+            setState(() => _escuchando = false);
+            if (texto.isNotEmpty) {
+              _frase.text = texto;
+              _rellenarCon(texto);
+            }
+          }
+        },
+      );
+      if (mounted) setState(() => _vozDisponible = ok);
+    } catch (_) {
+      if (mounted) setState(() => _vozDisponible = false);
+    }
+  }
+
+  String _mensajeVoz(String codigo) {
+    if (codigo.contains('permission')) {
+      return 'No hay permiso para usar el micrófono. Actívalo en los ajustes de la app.';
+    }
+    if (codigo.contains('no_match') || codigo.contains('speech_timeout')) {
+      return 'No te escuché bien. Intenta de nuevo o escribe la frase.';
+    }
+    if (codigo.contains('network')) {
+      return 'El dictado necesita internet. Mientras tanto puedes escribir la frase.';
+    }
+    return 'No se pudo usar el dictado. Puedes escribir la frase.';
+  }
+
+  Future<void> _empezarDictado() async {
+    if (!_vozDisponible || _escuchando) return;
+    setState(() {
+      _errorVoz = null;
+      _parcial = '';
+      _escuchando = true;
+    });
+    try {
+      await _voz.listen(
+        onResult: (r) {
+          if (!mounted) return;
+          setState(() => _parcial = r.recognizedWords);
+        },
+        localeId: 'es_BO',
+        listenFor: const Duration(seconds: 60),
+        pauseFor: const Duration(seconds: 4),
+        listenOptions: SpeechListenOptions(
+          partialResults: true,
+          listenMode: ListenMode.dictation,
+          cancelOnError: true,
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _escuchando = false;
+          _errorVoz = 'No se pudo iniciar el dictado. Intenta de nuevo.';
+        });
+      }
+    }
+  }
+
+  Future<void> _detenerDictado() async {
+    try {
+      await _voz.stop();
+    } catch (_) {
+      // Lo gestiona onStatus.
+    }
+  }
+
+  TimeOfDay? _horaDesde(String hhmm) {
+    final partes = hhmm.split(':');
+    if (partes.length != 2) return null;
+    final h = int.tryParse(partes[0]);
+    final m = int.tryParse(partes[1]);
+    if (h == null || m == null) return null;
+    return TimeOfDay(hour: h, minute: m);
+  }
+
+  /// Saca de la frase lo que se pueda y lo pone en el formulario. No guarda nada: se revisa abajo.
+  Future<void> _rellenarCon(String frase) async {
+    final labs = ref.read(laboratoriosProvider).value?.where((l) => l.activo).toList() ?? const <Laboratorio>[];
+    final software = ref.read(softwareProvider).value ?? const <Software>[];
+    List<UsuarioOpcion> personas;
+    try {
+      personas = await ref.read(repositorioProvider).opcionesUsuarios('docente,administrativo,auxiliar,admin');
+    } catch (_) {
+      personas = const [];
+    }
+    if (!mounted) return;
+
+    final r = interpretarDictado(
+      frase,
+      ContextoDictado(
+        hoy: DateTime.now(),
+        laboratorios: [for (final l in labs) LabCtx(l.id, l.codigo, l.nombre)],
+        personas: [for (final p in personas) PersonaCtx(p.id, p.nombreCompleto)],
+        programas: [for (final s in software) ProgramaCtx(s.id, s.nombreCompleto)],
+      ),
+    );
+
+    final afectados = <_Bloque>[];
+    setState(() {
+      if (r.titulo != null) _titulo.text = r.titulo!;
+      if (r.descripcion != null) _descripcion.text = r.descripcion!;
+      if (r.contacto != null) _contacto.text = r.contacto!;
+      if (r.solicitante != null) {
+        final hallados = personas.where((p) => p.id == r.solicitante).toList();
+        if (hallados.isNotEmpty) {
+          _esExterno = false;
+          _solicitante = hallados.first;
+        }
+      } else if (r.solicitanteExterno != null && r.solicitanteExterno!.isNotEmpty) {
+        _esExterno = true;
+        _externo.text = r.solicitanteExterno!;
+      }
+
+      final primero = _bloques.first;
+      if (r.fecha != null) {
+        final f = DateTime.tryParse(r.fecha!);
+        if (f != null) primero.fecha = DateTime(f.year, f.month, f.day);
+      }
+      if (r.horaInicio != null && r.horaFin != null) {
+        final ini = _horaDesde(r.horaInicio!);
+        final fin = _horaDesde(r.horaFin!);
+        if (ini != null && fin != null) {
+          primero.inicio = ini;
+          primero.fin = fin;
+        }
+      }
+      if (r.laboratorios != null && r.laboratorios!.isNotEmpty) {
+        primero.laboratorio = r.laboratorios!.first;
+        afectados.add(primero);
+        // Cada aula extra se agrega como un día más con la misma fecha y horario.
+        for (final id in r.laboratorios!.skip(1)) {
+          final extra = _Bloque(laboratorio: id, fecha: primero.fecha, inicio: primero.inicio, fin: primero.fin);
+          _bloques.add(extra);
+          afectados.add(extra);
+        }
+      } else {
+        afectados.add(primero);
+      }
+      if (r.programas != null) _programas.addAll(r.programas!);
+      if (r.requiereApoyo != null) {
+        _requiereApoyo = r.requiereApoyo!;
+        if (r.auxiliaresRequeridos != null) _auxiliaresRequeridos = r.auxiliaresRequeridos!;
+      }
+      _entendido = r;
+    });
+
+    for (final b in afectados) {
+      _revisar(b);
+    }
   }
 
   // ── Disponibilidad en vivo ──
@@ -292,6 +481,161 @@ class _ReservaNuevaPageState extends ConsumerState<ReservaNuevaPage> {
     }
   }
 
+  Widget _seccionDictado(ThemeData tema, ColorScheme esquema) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: esquema.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: esquema.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome_outlined, size: 18, color: esquema.primary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text('Dicta o escribe la reserva en una frase', style: tema.textTheme.titleSmall),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Ej.: Taller de Git, mañana de 8 a 10, laboratorios 41 y 42, solicita Juan Pérez.',
+            style: tema.textTheme.bodySmall?.copyWith(color: esquema.onSurfaceVariant),
+          ),
+          const SizedBox(height: 10),
+          if (_escuchando)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: esquema.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: esquema.primary),
+              ),
+              child: Text(_parcial.isEmpty ? 'Te escucho…' : _parcial),
+            )
+          else
+            TextField(
+              controller: _frase,
+              minLines: 2,
+              maxLines: 4,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                hintText: 'Qué actividad, qué día, a qué hora y en qué aulas',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (_vozDisponible)
+                if (_escuchando)
+                  FilledButton.icon(
+                    onPressed: _detenerDictado,
+                    icon: const Icon(Icons.stop),
+                    label: const Text('Detener'),
+                  )
+                else
+                  FilledButton.tonalIcon(
+                    onPressed: _empezarDictado,
+                    icon: const Icon(Icons.mic),
+                    label: const Text('Dictar'),
+                  ),
+              OutlinedButton.icon(
+                onPressed: _escuchando
+                    ? null
+                    : () {
+                        final t = _frase.text.trim();
+                        if (t.isNotEmpty) _rellenarCon(t);
+                      },
+                icon: const Icon(Icons.edit_note),
+                label: const Text('Rellenar formulario'),
+              ),
+              if (_escuchando)
+                Text(
+                  'Escuchando… haz una pausa al terminar.',
+                  style: tema.textTheme.bodySmall?.copyWith(color: esquema.onSurfaceVariant),
+                ),
+            ],
+          ),
+          if (!_vozDisponible)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Este dispositivo no tiene dictado por voz. Puedes escribir la frase y pulsar «Rellenar formulario».',
+                style: tema.textTheme.bodySmall?.copyWith(color: esquema.onSurfaceVariant),
+              ),
+            ),
+          if (_errorVoz != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: esquema.error),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(_errorVoz!, style: tema.textTheme.bodySmall?.copyWith(color: esquema.error)),
+                  ),
+                ],
+              ),
+            ),
+          if (_entendido != null && !_escuchando) ...[
+            const SizedBox(height: 10),
+            _resumenEntendido(tema, esquema, _entendido!),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _resumenEntendido(ThemeData tema, ColorScheme esquema, ResultadoDictado r) {
+    final hayDatos = r.entendido.isNotEmpty;
+    final color = hayDatos ? const Color(0xFF0E7A3E) : const Color(0xFFB26A00);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            hayDatos ? 'Rellené esto. Revísalo antes de guardar:' : 'No entendí datos de una reserva en esa frase.',
+            style: tema.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: color),
+          ),
+          if (hayDatos) ...[
+            const SizedBox(height: 4),
+            for (final linea in r.entendido)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text('• $linea', style: tema.textTheme.bodySmall),
+              ),
+          ],
+          if (hayDatos && r.faltantes.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Me faltó: ${r.faltantes.join(', ')}. Complétalo abajo.',
+                style: tema.textTheme.bodySmall?.copyWith(color: esquema.onSurfaceVariant),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
@@ -328,6 +672,9 @@ class _ReservaNuevaPageState extends ConsumerState<ReservaNuevaPage> {
                 decoration: BoxDecoration(color: esquema.errorContainer, borderRadius: BorderRadius.circular(10)),
                 child: Text(_errorGeneral!, style: TextStyle(color: esquema.onErrorContainer)),
               ),
+
+            // ── Dictado ──
+            _seccionDictado(tema, esquema),
 
             // ── Qué ──
             TextFormField(
@@ -521,6 +868,8 @@ class _CampoSelector extends StatelessWidget {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: etiqueta,
+          // La etiqueta siempre arriba: si no, se encima con el texto marcador.
+          floatingLabelBehavior: FloatingLabelBehavior.always,
           prefixIcon: Icon(icono),
           suffixIcon: const Icon(Icons.arrow_drop_down),
           errorText: error,

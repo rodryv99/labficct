@@ -21,10 +21,16 @@ class EstadoVacio extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: tema.colorScheme.primaryContainer,
-              child: Icon(icono, color: tema.colorScheme.onPrimaryContainer),
+            // Un recuadro con línea fina, como una celda vacía del plano.
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: tema.colorScheme.surfaceContainerLowest,
+                border: Border.all(color: tema.colorScheme.outlineVariant, width: 1.5),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Icon(icono, color: tema.colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
             Text(titulo, style: tema.textTheme.titleMedium, textAlign: TextAlign.center),
@@ -74,18 +80,27 @@ class Etiqueta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final esquema = Theme.of(context).colorScheme;
+    final claro = esquema.brightness == Brightness.light;
     final (fondo, frente) = switch (tono) {
-      Tono.exito => (const Color(0xFFE7F4EC), const Color(0xFF0E7A3E)),
-      Tono.aviso => (const Color(0xFFFFF4E0), const Color(0xFF8A5300)),
-      Tono.peligro => (const Color(0xFFFDE7E9), const Color(0xFFB10E1C)),
-      Tono.info => (const Color(0xFFE8F1FB), const Color(0xFF0B5CAD)),
+      Tono.exito => claro
+          ? (const Color(0xFFE2F3E9), const Color(0xFF0E6B37))
+          : (const Color(0xFF123524), const Color(0xFF7BE0A6)),
+      Tono.aviso => claro
+          ? (const Color(0xFFFFEFD2), const Color(0xFF7A4900))
+          : (const Color(0xFF3D2C0A), const Color(0xFFF5C26B)),
+      Tono.peligro => claro
+          ? (const Color(0xFFFBE3E6), const Color(0xFFA50D25))
+          : (const Color(0xFF45161A), const Color(0xFFFF9B9B)),
+      Tono.info => claro
+          ? (const Color(0xFFDCE8F6), const Color(0xFF034481))
+          : (const Color(0xFF12294A), const Color(0xFF9CC7F5)),
       Tono.marca => (esquema.primaryContainer, esquema.onPrimaryContainer),
       Tono.neutro => (esquema.surfaceContainerHigh, esquema.onSurfaceVariant),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(color: fondo, borderRadius: BorderRadius.circular(6)),
-      child: Text(texto, style: TextStyle(color: frente, fontSize: 12, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(color: fondo, borderRadius: BorderRadius.circular(3)),
+      child: Text(texto, style: TextStyle(color: frente, fontSize: 13, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -101,10 +116,9 @@ class TituloSeccion extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
       child: Text(
-        texto.toUpperCase(),
-        style: tema.textTheme.labelSmall?.copyWith(
-          color: tema.colorScheme.onSurfaceVariant,
-          letterSpacing: 0.6,
+        texto,
+        style: tema.textTheme.titleSmall?.copyWith(
+          color: tema.colorScheme.onSurface,
           fontWeight: FontWeight.w600,
         ),
       ),

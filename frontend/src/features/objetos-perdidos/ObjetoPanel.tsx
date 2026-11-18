@@ -19,6 +19,8 @@ import { CATEGORIAS_OBJETO } from "../../lib/constantes";
 import { aInputLocal, ahoraLocalInput } from "../../lib/fechas";
 import { estadoCampo, useFormulario } from "../../lib/useFormulario";
 import { listarLaboratoriosTodos } from "../laboratorios/api";
+import { PanelDictado } from "../dictado/PanelDictado";
+import { type ResultadoObjeto, interpretarDictadoObjeto } from "./dictadoObjeto";
 import { type DatosObjeto, editarObjeto, registrarObjeto } from "./api";
 
 const useEstilos = makeStyles({
@@ -56,6 +58,19 @@ export function ObjetoPanel({ abierto, objeto, onCerrar, onGuardado }: Props) {
   const esNuevo = objeto === null;
 
   const laboratorios = useQuery({ queryKey: ["laboratorios", "todos"], queryFn: listarLaboratoriosTodos, enabled: abierto });
+
+  // Dictado por voz: rellena el formulario desde una frase. No guarda nada.
+  const aplicarDictado = (r: ResultadoObjeto) =>
+    f.setValores((a) => ({
+      ...a,
+      descripcion: r.descripcion ?? a.descripcion,
+      caracteristicas: r.caracteristicas ?? a.caracteristicas,
+      categoria: r.categoria ?? a.categoria,
+      encontrado_por: r.encontrado_por ?? a.encontrado_por,
+      fecha_hallazgo: r.fecha_hallazgo ? `${r.fecha_hallazgo}T09:00` : a.fecha_hallazgo,
+      laboratorio: r.laboratorio ?? a.laboratorio,
+      lugar: r.lugar ?? a.lugar,
+    }));
 
   useEffect(() => {
     if (!abierto) return;
@@ -110,6 +125,25 @@ export function ObjetoPanel({ abierto, objeto, onCerrar, onGuardado }: Props) {
         <MessageBar intent="error">
           <MessageBarBody>{e.general}</MessageBarBody>
         </MessageBar>
+      )}
+
+      {esNuevo && (
+        <PanelDictado<ResultadoObjeto>
+          etiqueta="Dicta o escribe el objeto en una frase"
+          ejemplo="Ej.: Un celular negro con funda roja, encontrado en el laboratorio 41 hoy, lo entregó Juan."
+          placeholder="Qué objeto es, cómo es, dónde y cuándo se encontró"
+          sustantivo="un objeto perdido"
+          abierto={abierto}
+          interpretar={(texto) =>
+            interpretarDictadoObjeto(texto, {
+              hoy: new Date(),
+              laboratorios: (laboratorios.data ?? [])
+                .filter((l) => l.activo)
+                .map((l) => ({ id: l.id, codigo: l.codigo, nombre: l.nombre })),
+            })
+          }
+          onAplicar={aplicarDictado}
+        />
       )}
 
       <Field label="Foto">

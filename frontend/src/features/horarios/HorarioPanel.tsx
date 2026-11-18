@@ -28,6 +28,8 @@ import { franjasPorDuracion, useConfiguracion } from "../../lib/configuracion";
 import { DIAS } from "../../lib/constantes";
 import { estadoCampo, useFormulario } from "../../lib/useFormulario";
 import { listarLaboratoriosTodos } from "../laboratorios/api";
+import { PanelDictado } from "../dictado/PanelDictado";
+import { type ResultadoHorario, interpretarDictadoHorario } from "./dictadoHorario";
 import {
   type DatosHorario,
   type GrupoHorario,
@@ -184,6 +186,21 @@ export function HorarioPanel({ abierto, grupo, periodoPorDefecto, onCerrar }: Pr
   const laboratorios = useQuery({ queryKey: ["laboratorios", "todos"], queryFn: listarLaboratoriosTodos, enabled: abierto });
   const docentes = useQuery({ queryKey: ["docentes"], queryFn: () => listarDocentes(), enabled: abierto });
 
+  // Dictado por voz: rellena el formulario desde una frase. No guarda nada.
+  const aplicarDictado = (r: ResultadoHorario) =>
+    f.setValores((a) => ({
+      ...a,
+      materia: r.materia ?? a.materia,
+      docente: r.docente ?? a.docente,
+      dias: r.dias ?? a.dias,
+      grupo: r.grupo ?? a.grupo,
+      hora_inicio: r.hora_inicio ?? a.hora_inicio,
+      hora_fin: r.hora_fin ?? a.hora_fin,
+      laboratorio: r.laboratorio ?? a.laboratorio,
+      periodo: r.periodo ?? a.periodo,
+      observaciones: r.observaciones ?? a.observaciones,
+    }));
+
   useEffect(() => {
     if (!abierto) return;
     setChoques([]);
@@ -306,6 +323,27 @@ export function HorarioPanel({ abierto, grupo, periodoPorDefecto, onCerrar }: Pr
               )}
             </MessageBarBody>
           </MessageBar>
+        )}
+
+        {esNuevo && (
+          <PanelDictado<ResultadoHorario>
+            etiqueta="Dicta o escribe el horario en una frase"
+            ejemplo="Ej.: Programación I grupo A con el ingeniero Justiniano, los lunes y miércoles de 8 a 10 en el laboratorio 41."
+            placeholder="Materia, grupo, docente, qué días, a qué hora y en qué laboratorio"
+            sustantivo="un horario"
+            abierto={abierto}
+            interpretar={(texto) =>
+              interpretarDictadoHorario(texto, {
+                materias: (materias.data ?? []).map((m) => ({ id: m.id, sigla: m.sigla, nombre: m.nombre })),
+                docentes: (docentes.data ?? []).map((d) => ({ id: d.id, nombre: d.nombre_completo })),
+                laboratorios: (laboratorios.data ?? [])
+                  .filter((l) => l.activo)
+                  .map((l) => ({ id: l.id, codigo: l.codigo, nombre: l.nombre })),
+                periodos: (periodos.data ?? []).map((pe) => ({ id: pe.id, nombre: pe.nombre })),
+              })
+            }
+            onAplicar={aplicarDictado}
+          />
         )}
 
         <div className={estilos.fila}>

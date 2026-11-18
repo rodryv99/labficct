@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/auth/sesion.dart';
 import '../../core/datos/proveedores.dart';
 import '../../core/modelos/modelos.dart';
 import '../../shared/widgets/comunes.dart';
@@ -36,12 +37,20 @@ class _LaboratoriosPageState extends ConsumerState<LaboratoriosPage> {
   @override
   Widget build(BuildContext context) {
     final laboratorios = ref.watch(laboratoriosProvider);
+    final puedeGestionar = ref.watch(sesionProvider).usuario?.puede('laboratorios.gestionar') ?? false;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Laboratorios'),
         actions: const [BotonNotificaciones(), BotonPerfil()],
       ),
+      floatingActionButton: puedeGestionar
+          ? FloatingActionButton.extended(
+              onPressed: () => context.push('/laboratorio/nuevo'),
+              icon: const Icon(Icons.add),
+              label: const Text('Laboratorio'),
+            )
+          : null,
       body: Column(
         children: [
           Padding(
@@ -94,12 +103,13 @@ class _LaboratoriosPageState extends ConsumerState<LaboratoriosPage> {
   }
 }
 
-class _TarjetaLaboratorio extends StatelessWidget {
+class _TarjetaLaboratorio extends ConsumerWidget {
   const _TarjetaLaboratorio({required this.laboratorio});
   final Laboratorio laboratorio;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final verBitacora = ref.watch(sesionProvider).usuario?.puede('bitacora.ver') ?? false;
     final tema = Theme.of(context);
     final esquema = tema.colorScheme;
     final l = laboratorio;
@@ -156,7 +166,14 @@ class _TarjetaLaboratorio extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: esquema.onSurfaceVariant),
+              if (verBitacora)
+                IconButton(
+                  tooltip: 'Bitácora de ${l.codigo}',
+                  onPressed: () => context.push('/laboratorio/${l.id}/bitacora'),
+                  icon: const Icon(Icons.menu_book_outlined),
+                )
+              else
+                Icon(Icons.chevron_right, color: esquema.onSurfaceVariant),
             ],
           ),
         ),

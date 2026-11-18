@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/datos/proveedores.dart';
+import '../../core/dictado/dictado_frase.dart';
+import '../../core/dictado/nucleo.dart';
 import '../../core/modelos/modelos.dart';
 import '../../core/network/api_cliente.dart';
 import '../../core/network/repositorio.dart';
 import '../../shared/widgets/comunes.dart';
 import '../../shared/widgets/seleccion.dart';
+import 'dictado_tarea.dart';
 
 /// Nueva tarjeta para el pizarrón. Los responsables reciben un aviso.
 class TareaNuevaPage extends ConsumerStatefulWidget {
@@ -37,6 +40,21 @@ class _TareaNuevaPageState extends ConsumerState<TareaNuevaPage> {
     _titulo.dispose();
     _descripcion.dispose();
     super.dispose();
+  }
+
+  void _aplicarDictado(ResultadoTarea r) {
+    setState(() {
+      if (r.titulo != null) _titulo.text = r.titulo!;
+      if (r.descripcion != null) _descripcion.text = r.descripcion!;
+      if (r.prioridad != null) _prioridad = r.prioridad!;
+      if (r.laboratorio != null) _laboratorio = r.laboratorio;
+      if (r.responsables != null) {
+        _responsables
+          ..clear()
+          ..addAll(r.responsables!);
+      }
+      if (r.fechaLimite != null) _fechaLimite = r.fechaLimite;
+    });
   }
 
   Future<void> _elegirResponsables() async {
@@ -138,6 +156,25 @@ class _TareaNuevaPageState extends ConsumerState<TareaNuevaPage> {
                 decoration: BoxDecoration(color: esquema.errorContainer, borderRadius: BorderRadius.circular(10)),
                 child: Text(_error!, style: TextStyle(color: esquema.onErrorContainer)),
               ),
+            DictadoFrase<ResultadoTarea>(
+              ejemplo: 'Ej.: Instalar Office en el laboratorio 41, prioridad alta, '
+                  'responsables Ana y Mario, para el viernes.',
+              placeholder: 'Qué hay que hacer, en qué laboratorio, prioridad, para cuándo',
+              sustantivo: 'una tarea',
+              interpretar: (frase) {
+                final ahora = DateTime.now();
+                return interpretarDictadoTarea(
+                  frase,
+                  ContextoTarea(
+                    hoy: DateTime(ahora.year, ahora.month, ahora.day),
+                    laboratorios: [for (final l in laboratorios) LabCtx(l.id, l.codigo, l.nombre)],
+                    personas: [for (final p in personas) PersonaCtx(p.id, p.nombreCompleto)],
+                  ),
+                );
+              },
+              onAplicar: _aplicarDictado,
+            ),
+            const SizedBox(height: 14),
             TextFormField(
               controller: _titulo,
               textCapitalization: TextCapitalization.sentences,

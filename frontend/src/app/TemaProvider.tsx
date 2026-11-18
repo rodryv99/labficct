@@ -35,6 +35,8 @@ export function TemaProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.style.colorScheme = oscuro ? "dark" : "light";
+    // Las variables de identidad (acento, cuadrícula, barra) dependen de esto: ver global.css.
+    document.documentElement.dataset.tema = oscuro ? "oscuro" : "claro";
   }, [oscuro]);
 
   const valor = useMemo<ContextoTema>(

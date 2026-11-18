@@ -38,6 +38,10 @@ Plataforma web y móvil para gestionar los laboratorios de cómputo de la FICCT 
 - **Bitácora de laboratorio.** Registrar, editar, borrar y consultar lo que se hace en cada laboratorio: instalación de programas, revisión de equipos, mantenimiento, incidentes…
   - Está en el menú *Bitácora* y en la pestaña *Bitácora* de cada laboratorio.
   - Cada quien edita lo suyo; el Admin, todo.
+  - **Mapa pintado (como OrganiLab), opcional en cada entrada:** sobre la grilla del laboratorio se eligen los atributos (cuántos, su nombre y su color; p. ej. *Funciona* en verde y *Con falla* en rojo) y se pintan los elementos. Hay pincel, borrador, mano para moverse y zoom; con doble clic (o doble toque) se ve la ficha del elemento en solo lectura.
+  - Se guarda solo el rectángulo que usa el laboratorio, como una copia: si después se cambia la grilla, el mapa de una entrada vieja sigue mostrando cómo estaba ese día.
+  - **Exportar:** imagen (JPG), PDF o *archivo de bitácora* (`.bitacora.json`). Ese archivo se **importa** desde la web (botón *Importar* de la bitácora) para seguir editándolo.
+  - En la app: botón de bitácora en cada laboratorio de la pestaña *Labs*; ahí se registra, se pinta a pantalla completa y se comparte por WhatsApp u otra app.
 - **Revisiones periódicas.** El Admin programa revisiones de un laboratorio cada N días, semanas o meses.
   - Cuando una vence, pasa sola al pizarrón de tareas y se avisa a los auxiliares.
   - Al marcar esa tarea como hecha, la revisión queda registrada en la bitácora y se calcula la próxima fecha.
@@ -167,6 +171,12 @@ flutter create . --org bo.edu.uagrm.ficct --project-name labficct --platforms an
 flutter pub get
 ```
 
+   Si tu `pubspec.yaml` todavía no tiene `share_plus` (compartir la bitácora por WhatsApp u otra app), agrégalo una vez con:
+
+```bash
+flutter pub add share_plus
+```
+
 5. Ejecuta la app (este es el comando de siempre, a partir de ahora solo usas este):
 
 ```bash
@@ -218,7 +228,7 @@ Qué ve cada rol en la app:
 | Docente           | Mis clases · Laboratorios · Mis reservas · Asistencia            |
 | Administrativo    | Horarios · Laboratorios · Asistencia                             |
 
-En todas las pestañas está la campana de notificaciones. Las solicitudes de asistencia (para quien las atiende) y *Mis preferencias* (docentes) se abren desde el perfil. Bitácora y revisiones están solo en la web.
+En todas las pestañas está la campana de notificaciones. Las solicitudes de asistencia (para quien las atiende) y *Mis preferencias* (docentes) se abren desde el perfil. La bitácora (con su mapa) se abre desde el botón de cada laboratorio en *Labs*; las revisiones están solo en la web.
 
 ---
 

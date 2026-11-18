@@ -45,8 +45,12 @@ INSTALLED_APPS = [
     "apps.notificaciones",
     "apps.preferencias",
     "apps.asistencia",
+    "apps.marcaciones",
+    "apps.respaldos",
     "apps.bitacora",
     "apps.tareas",
+    "apps.inventario",
+    "apps.reportes",
 ]
 
 MIDDLEWARE = [
@@ -211,11 +215,46 @@ CELERY_BEAT_SCHEDULE = {
     # Revisiones periódicas que vencen: pasan al pizarrón de tareas y se avisa.
     "revisiones-vencidas": {"task": "bitacora.revisiones_vencidas", "schedule": 15 * 60.0},
     "limpiar-notificaciones": {"task": "notificaciones.limpiar", "schedule": 24 * 60 * 60.0},
+    # Recordatorio "tu turno empieza pronto": cada minuto revisa los horarios asignados.
+    **(
+        {"recordatorio-turno": {"task": "notificaciones.recordatorio_turno", "schedule": 60.0}}
+        if env.bool("RECORDATORIO_TURNO", default=True)
+        else {}
+    ),
+    # Respaldo automático diario (si el servidor tiene pg_dump). Activable/desactivable con RESPALDO_AUTOMATICO.
+    **(
+        {"respaldo-automatico": {"task": "respaldos.automatico", "schedule": 24 * 60 * 60.0}}
+        if env.bool("RESPALDO_AUTOMATICO", default=True)
+        else {}
+    ),
 }
 
 # ── Avisos a los auxiliares ─────────────────────────────
 # Cuántos minutos antes de cada clase o reserva se avisa que alisten el aula.
 AVISO_ALISTAR_MINUTOS = env.int("AVISO_ALISTAR_MINUTOS", default=15)
+
+# ── Notificaciones push (Firebase Cloud Messaging) ──────
+# Interruptor general del push. En false, nadie recibe push (la campana sigue igual).
+PUSH_HABILITADO = env.bool("PUSH_HABILITADO", default=True)
+# Ruta al JSON de la cuenta de servicio de Firebase. Vacío = push apagado (degrada solo).
+FCM_CREDENCIALES = env("FCM_CREDENCIALES", default="")
+# Cuántos minutos antes del inicio del turno se le recuerda al auxiliar que marque.
+RECORDATORIO_TURNO_MINUTOS = env.int("RECORDATORIO_TURNO_MINUTOS", default=15)
+
+# ── Control de asistencia de auxiliares ─────────────────
+# Con un GPS más impreciso que esto (en metros) no se acepta la marca de entrada o salida.
+MARCACION_PRECISION_MAXIMA_M = env.int("MARCACION_PRECISION_MAXIMA_M", default=150)
+# Tolerancia del horario (min): se puede marcar la entrada hasta estos minutos antes del
+# inicio del turno, y la salida cuenta a tiempo hasta estos minutos después del fin.
+MARCACION_TOLERANCIA_MIN = env.int("MARCACION_TOLERANCIA_MIN", default=15)
+
+# ── Respaldos (copias de seguridad) de la base ──────────
+# Carpeta donde se guardan los .sql. Por defecto backend/backups (persiste por el volumen).
+RESPALDO_DIR = env("RESPALDO_DIR", default=str(BASE_DIR / "backups"))
+# Cuántos respaldos se conservan; al crear uno nuevo se borran los más viejos.
+RESPALDO_MAXIMOS = env.int("RESPALDO_MAXIMOS", default=20)
+# Ruta de pg_dump; vacío usa el que esté en el PATH (lo trae la imagen del backend).
+PG_DUMP_BIN = env("PG_DUMP_BIN", default="")
 
 # ── Documentación de la API (OpenAPI) ───────────────────
 SPECTACULAR_SETTINGS = {

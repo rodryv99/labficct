@@ -72,6 +72,10 @@ class EntradaBitacora(ModeloBase):
     revision = models.ForeignKey(
         RevisionProgramada, on_delete=models.SET_NULL, null=True, blank=True, related_name="entradas"
     )
+    # Mapa pintado estilo OrganiLab (opcional): copia de la distribución del laboratorio
+    # (solo el rectángulo que usa), los atributos con sus colores y las casillas pintadas.
+    # La forma está en mapa.py. Es una copia: si después cambian la grilla, el mapa no cambia.
+    mapa = models.JSONField(null=True, blank=True, default=None)
 
     class Meta:
         verbose_name = "entrada de bitácora"

@@ -53,6 +53,7 @@ class TareaSerializer(serializers.ModelSerializer):
     creado_por_nombre = serializers.SerializerMethodField()
     completada_por_nombre = serializers.SerializerMethodField()
     revision_titulo = serializers.SerializerMethodField()
+    verificacion = serializers.SerializerMethodField()
     vencida = serializers.SerializerMethodField()
     total_avances = serializers.SerializerMethodField()
     ultimo_avance = serializers.SerializerMethodField()
@@ -82,6 +83,7 @@ class TareaSerializer(serializers.ModelSerializer):
             "completada_por_nombre",
             "revision",
             "revision_titulo",
+            "verificacion",
             "total_avances",
             "ultimo_avance",
         ]
@@ -102,6 +104,11 @@ class TareaSerializer(serializers.ModelSerializer):
 
     def get_revision_titulo(self, obj) -> str:
         return obj.revision.titulo if obj.revision_id else ""
+
+    def get_verificacion(self, obj) -> int | None:
+        """Id de la verificación de inventario que creó esta tarea (su avance se calcula solo)."""
+        verificacion = getattr(obj, "verificacion", None)
+        return verificacion.pk if verificacion else None
 
     def get_vencida(self, obj) -> bool:
         return bool(

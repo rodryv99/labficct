@@ -1,24 +1,30 @@
 import {
   Button,
+  Caption1,
   Field,
   Input,
   MessageBar,
   MessageBarBody,
   Select,
+  Spinner,
+  Switch,
   Textarea,
   makeStyles,
+  tokens,
 } from "@fluentui/react-components";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
-import type { EntradaBitacora, TipoBitacora } from "../../api/tipos";
+import { mensajeDeError } from "../../api/errores";
+import type { AtributoMapa, EntradaBitacora, MarcaMapa, TipoBitacora } from "../../api/tipos";
 import { useNotificar } from "../../components/feedback/notificaciones";
 import { PanelFormulario } from "../../components/formularios/PanelFormulario";
 import { TIPOS_BITACORA } from "../../lib/constantes";
 import { aInputLocal, ahoraLocalInput, localAIso } from "../../lib/fechas";
 import { estadoCampo, useFormulario } from "../../lib/useFormulario";
 import { listarLaboratoriosTodos } from "../laboratorios/api";
-import { crearEntrada, editarEntrada } from "./api";
+import { ATRIBUTOS_INICIALES, crearEntrada, editarEntrada, obtenerPlantilla } from "./api";
+import { MapaBitacora } from "./MapaBitacora";
 
 const useEstilos = makeStyles({
   fila: {
@@ -29,6 +35,16 @@ const useEstilos = makeStyles({
       gridTemplateColumns: "minmax(0, 1fr)",
     },
   },
+  mapa: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    paddingTop: "12px",
+    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+  },
+  secundario: {
+    color: tokens.colorNeutralForeground3,
+  },
 });
 
 interface Formulario {
@@ -38,6 +54,9 @@ interface Formulario {
   fecha: string;
   elementos: string;
   descripcion: string;
+  /** Mapa pintado estilo OrganiLab. */
+  conMapa: boolean;
+  pintado: { atributos: AtributoMapa[]; marcas: MarcaMapa[] };
 }
 
 const vacio = (laboratorio: number | null): Formulario => ({
@@ -47,6 +66,8 @@ const vacio = (laboratorio: number | null): Formulario => ({
   fecha: ahoraLocalInput(),
   elementos: "",
   descripcion: "",
+  conMapa: false,
+  pintado: { atributos: ATRIBUTOS_INICIALES, marcas: [] },
 });
 
 interface Props {
@@ -67,8 +88,13 @@ export function EntradaPanel({ abierto, entrada, laboratorioId, onCerrar, onGuar
 
   const laboratorios = useQuery({ queryKey: ["laboratorios", "todos"], queryFn: listarLaboratoriosTodos, enabled: abierto });
 
+  // Laboratorio de la última vez: si el usuario lo cambia, lo pintado era de otra grilla.
+  const labAnterior = useRef(f.valores.laboratorio);
+
   useEffect(() => {
     if (!abierto) return;
+    // Al cargar la entrada (o una nueva) no se borra lo pintado: no es un cambio de laboratorio.
+    labAnterior.current = entrada ? entrada.laboratorio : (laboratorioId ?? null);
     f.reiniciar(
       entrada
         ? {
@@ -78,15 +104,42 @@ export function EntradaPanel({ abierto, entrada, laboratorioId, onCerrar, onGuar
             fecha: aInputLocal(entrada.fecha),
             elementos: entrada.elementos,
             descripcion: entrada.descripcion,
+            conMapa: entrada.mapa !== null,
+            pintado: {
+              atributos: entrada.mapa?.atributos ?? ATRIBUTOS_INICIALES,
+              marcas: entrada.mapa?.marcas ?? [],
+            },
           }
         : vacio(laboratorioId ?? null),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [abierto, entrada]);
 
+  // La grilla del mapa: la copia guardada si la entrada ya tenía mapa de este laboratorio;
+  // si no, la distribución actual del laboratorio elegido.
+  const usaCopia = entrada?.mapa != null && entrada.laboratorio === f.valores.laboratorio;
+  const plantilla = useQuery({
+    queryKey: ["bitacora", "plantilla", f.valores.laboratorio],
+    queryFn: () => obtenerPlantilla(f.valores.laboratorio!),
+    enabled: abierto && f.valores.conMapa && !usaCopia && f.valores.laboratorio !== null,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const base = usaCopia ? entrada!.mapa : (plantilla.data ?? null);
+
+  // Al cambiar de laboratorio, lo pintado era de otra grilla.
+  useEffect(() => {
+    if (labAnterior.current !== f.valores.laboratorio && f.valores.pintado.marcas.length) {
+      f.set("pintado", { ...f.valores.pintado, marcas: [] });
+    }
+    labAnterior.current = f.valores.laboratorio;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [f.valores.laboratorio]);
+
   const guardar = useMutation({
     mutationFn: () => {
       const v = f.valores;
+      const ocupadas = new Set(base?.celdas.map((c) => `${c.fila},${c.columna}`));
       const datos = {
         laboratorio: v.laboratorio!,
         tipo: v.tipo,
@@ -94,6 +147,12 @@ export function EntradaPanel({ abierto, entrada, laboratorioId, onCerrar, onGuar
         fecha: localAIso(v.fecha),
         elementos: v.elementos.trim(),
         descripcion: v.descripcion.trim(),
+        mapa: v.conMapa
+          ? {
+              atributos: v.pintado.atributos.map((a, i) => ({ ...a, nombre: a.nombre.trim() || `Atributo ${i + 1}` })),
+              marcas: v.pintado.marcas.filter((m) => ocupadas.has(`${m.fila},${m.columna}`)),
+            }
+          : null,
       };
       return esNueva ? crearEntrada(datos) : editarEntrada(entrada.id, datos);
     },
@@ -106,7 +165,8 @@ export function EntradaPanel({ abierto, entrada, laboratorioId, onCerrar, onGuar
   });
 
   const { valores: v, errores: e } = f;
-  const completo = v.laboratorio !== null && v.titulo.trim() && v.fecha;
+  const mapaListo = !v.conMapa || base !== null;
+  const completo = v.laboratorio !== null && v.titulo.trim() && v.fecha && mapaListo;
   // Los laboratorios inactivos solo aparecen si la entrada ya era de uno.
   const opcionesLab = (laboratorios.data ?? []).filter((l) => l.activo || l.id === v.laboratorio);
 
@@ -116,6 +176,7 @@ export function EntradaPanel({ abierto, entrada, laboratorioId, onCerrar, onGuar
       titulo={esNueva ? "Registrar en la bitácora" : "Editar entrada"}
       subtitulo="Lo que se hizo o pasó en el laboratorio: instalaciones, fallas, mantenimiento."
       onCerrar={onCerrar}
+      tamano={v.conMapa ? "large" : "medium"}
       hayCambios={f.cambiado && !guardar.isPending}
       pie={
         <>
@@ -191,6 +252,40 @@ export function EntradaPanel({ abierto, entrada, laboratorioId, onCerrar, onGuar
           onChange={(_, d) => f.set("descripcion", d.value)}
         />
       </Field>
+
+      <div className={estilos.mapa}>
+        <Switch
+          label="Agregar mapa del laboratorio (pintar los equipos, como en OrganiLab)"
+          checked={v.conMapa}
+          disabled={v.laboratorio === null}
+          onChange={(_, d) => f.set("conMapa", d.checked)}
+        />
+        {v.conMapa &&
+          (base ? (
+            <>
+              {usaCopia && (
+                <Caption1 className={estilos.secundario}>
+                  Se usa la grilla como estaba cuando se hizo este mapa.
+                </Caption1>
+              )}
+              <MapaBitacora
+                mapa={base}
+                atributos={v.pintado.atributos}
+                marcas={v.pintado.marcas}
+                onCambiar={(atributos, marcas) => f.set("pintado", { atributos, marcas })}
+              />
+            </>
+          ) : plantilla.isError ? (
+            <MessageBar intent="warning">
+              <MessageBarBody>{mensajeDeError(plantilla.error)}</MessageBarBody>
+            </MessageBar>
+          ) : (
+            <Spinner size="small" label="Cargando la grilla del laboratorio…" />
+          ))}
+        {!v.conMapa && !esNueva && entrada.mapa && (
+          <Caption1 className={estilos.secundario}>Al guardar se quitará el mapa de esta entrada.</Caption1>
+        )}
+      </div>
     </PanelFormulario>
   );
 }

@@ -2,6 +2,7 @@ import { makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router";
 
+import { fondoPlano } from "../../app/tema";
 import { almacen } from "../../lib/utiles";
 import { BarraSuperior } from "./BarraSuperior";
 import { CambiarPasswordDialogo } from "./CambiarPasswordDialogo";
@@ -50,6 +51,9 @@ const useEstilos = makeStyles({
     overflowY: "auto",
     minWidth: 0,
     padding: "24px 32px 40px",
+    // El fondo de cuadrícula: la hoja del plano sobre la que va cada pantalla.
+    ...fondoPlano,
+    backgroundAttachment: "local",
     [ANGOSTO]: {
       gridColumn: "1 / -1",
       padding: "16px",

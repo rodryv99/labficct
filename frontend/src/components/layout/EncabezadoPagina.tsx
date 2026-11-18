@@ -1,32 +1,50 @@
 import { Body1, Caption1, Title3, makeStyles, tokens } from "@fluentui/react-components";
 import type { ReactNode } from "react";
 
+const ANGOSTO = "@media (max-width: 720px)";
+
+// El encabezado es el "cajetín" del plano: un bloque con el nombre de la
+// pantalla a la izquierda y, separadas por una línea, sus acciones.
 const useEstilos = makeStyles({
   raiz: {
     display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: "16px",
-    flexWrap: "wrap",
+    alignItems: "stretch",
     marginBottom: "20px",
+    backgroundColor: tokens.colorNeutralBackground1,
+    border: `1.5px solid ${tokens.colorNeutralStroke2}`,
+    borderRadius: tokens.borderRadiusLarge,
+    [ANGOSTO]: {
+      flexDirection: "column",
+    },
   },
   textos: {
+    flex: 1,
     display: "flex",
     flexDirection: "column",
-    gap: "4px",
+    gap: "2px",
     minWidth: 0,
+    padding: "14px 20px 16px",
   },
   migas: {
     color: tokens.colorNeutralForeground3,
   },
   descripcion: {
     color: tokens.colorNeutralForeground3,
+    maxWidth: "70ch",
   },
   acciones: {
     display: "flex",
     alignItems: "center",
+    justifyContent: "flex-end",
     gap: "8px",
     flexWrap: "wrap",
+    padding: "14px 20px",
+    borderLeft: `1.5px solid ${tokens.colorNeutralStroke2}`,
+    [ANGOSTO]: {
+      justifyContent: "flex-start",
+      borderLeft: "none",
+      borderTop: `1.5px solid ${tokens.colorNeutralStroke2}`,
+    },
   },
 });
 

@@ -15,7 +15,15 @@ def _enlace(tarea) -> str:
 
 
 def _avisar(
-    destinatarios, tarea, *, titulo: str, mensaje: str = "", actor=None, tipo=TipoNotificacion.TAREA, clave=""
+    destinatarios,
+    tarea,
+    *,
+    titulo: str,
+    mensaje: str = "",
+    actor=None,
+    tipo=TipoNotificacion.TAREA,
+    clave="",
+    push: bool = False,
 ):
     notificar(
         destinatarios,
@@ -26,7 +34,21 @@ def _avisar(
         datos={"tarea_id": tarea.pk, **({"revision_id": tarea.revision_id} if tarea.revision_id else {})},
         clave=clave,
         excepto=actor,
+        push=push,
     )
+
+
+def _de_verificacion_abierta(tarea) -> bool:
+    """La tarea viene de una verificación de inventario que sigue abierta: su avance y su
+    estado los calcula la verificación (se cierra desde Inventario)."""
+    verificacion = getattr(tarea, "verificacion", None)
+    return verificacion is not None and verificacion.estado == "abierta"
+
+
+MENSAJE_VERIFICACION = (
+    "Esta tarea es una verificación de inventario: avanza sola al marcar los activos "
+    "y queda hecha cuando el Admin cierra la verificación en Inventario."
+)
 
 
 def _interesados(tarea) -> list:
@@ -48,6 +70,7 @@ def crear_tarea(*, datos: dict, usuario) -> Tarea:
             titulo=f"Te asignaron una tarea: {tarea.titulo}",
             mensaje=tarea.descripcion[:300],
             actor=usuario,
+            push=True,
         )
     if estado != EstadoTarea.PENDIENTE:
         cambiar_estado(tarea=tarea, estado=estado, usuario=usuario)
@@ -74,6 +97,7 @@ def editar_tarea(*, tarea: Tarea, datos: dict, usuario) -> Tarea:
                 titulo=f"Te asignaron una tarea: {tarea.titulo}",
                 mensaje=tarea.descripcion[:300],
                 actor=usuario,
+                push=True,
             )
     if estado and estado != tarea.estado:
         cambiar_estado(tarea=tarea, estado=estado, usuario=usuario)
@@ -91,6 +115,8 @@ def cambiar_estado(
         if nota.strip():
             AvanceTarea.objects.create(tarea=tarea, autor=usuario, texto=nota.strip())
         return tarea
+    if _de_verificacion_abierta(tarea):
+        raise ErrorNegocio(MENSAJE_VERIFICACION, codigo="tarea_de_verificacion")
 
     tarea.estado = estado
     if estado == EstadoTarea.HECHA:
@@ -154,6 +180,8 @@ def agregar_avance(
             codigo="avance_vacio",
             campos={"texto": ["Escribe cómo va la tarea."]},
         )
+    if progreso is not None and _de_verificacion_abierta(tarea):
+        raise ErrorNegocio(MENSAJE_VERIFICACION, codigo="tarea_de_verificacion")
     if progreso is not None:
         tarea.progreso = progreso
         if not estado and tarea.estado == EstadoTarea.PENDIENTE and progreso > 0:
@@ -230,5 +258,6 @@ def crear_tarea_de_revision(revision) -> Tarea:
         titulo=f"Toca revisar {lab.codigo}: {revision.titulo}",
         mensaje=f"Revisión programada para el {revision.proxima_fecha:%d/%m}. Ya está en el pizarrón de tareas.",
         clave=f"revision:{revision.pk}:{revision.proxima_fecha.isoformat()}",
+        push=True,
     )
     return tarea

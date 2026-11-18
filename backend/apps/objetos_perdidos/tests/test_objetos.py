@@ -38,7 +38,9 @@ def test_registrar_crea_historial(cliente, auxiliar, lab):
 def test_no_existe_delete_en_la_api(cliente, admin_lab, lab):
     c = cliente(admin_lab)
     objeto = c.post(URL, _datos(lab), format="json").data
-    assert c.delete(f"{URL}{objeto['id']}/").status_code == 405
+    # No hay acción de borrar: los permisos la rechazan (403) antes de llegar al "método no permitido" (405).
+    assert c.delete(f"{URL}{objeto['id']}/").status_code in (403, 405)
+    assert ObjetoPerdido.objects.filter(pk=objeto["id"]).exists()
 
 
 def test_el_modelo_no_se_deja_borrar(auxiliar, lab):

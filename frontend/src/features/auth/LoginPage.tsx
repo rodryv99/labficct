@@ -13,12 +13,12 @@ import {
   tokens,
 } from "@fluentui/react-components";
 import { type FormEvent, useState } from "react";
-import { Navigate, useLocation } from "react-router";
+import { Link, Navigate, useLocation } from "react-router";
 
 import { mensajeDeError } from "../../api/errores";
 import { primeraRuta } from "../../app/navegacion";
 import { useSesion } from "../../app/sesion";
-import { identidad } from "../../app/tema";
+import { fondoPlano, fuentes, identidad } from "../../app/tema";
 import { IconoOcultar, IconoVer } from "../../components/iconos/iconos";
 import { PantallaCarga } from "../../components/feedback/PantallaCarga";
 import { env } from "../../config/env";
@@ -30,7 +30,7 @@ const useEstilos = makeStyles({
     height: "100%",
     display: "grid",
     gridTemplateColumns: "minmax(380px, 44%) 1fr",
-    backgroundColor: tokens.colorNeutralBackground1,
+    backgroundColor: tokens.colorNeutralBackground2,
     [ANGOSTO]: {
       gridTemplateColumns: "1fr",
       gridTemplateRows: "auto 1fr",
@@ -79,19 +79,20 @@ const useEstilos = makeStyles({
   },
   titulo: {
     margin: "0",
-    fontSize: "40px",
-    lineHeight: "48px",
+    fontFamily: fuentes.titulos,
+    fontSize: "64px",
+    lineHeight: "60px",
     fontWeight: tokens.fontWeightSemibold,
     letterSpacing: "-0.01em",
     [ANGOSTO]: {
-      fontSize: "22px",
+      fontSize: "26px",
       lineHeight: "28px",
     },
   },
+  // La marca dorada del plano: el mismo cuadrito que señala lo seleccionado.
   acento: {
-    width: "48px",
-    height: "4px",
-    borderRadius: "2px",
+    width: "14px",
+    height: "14px",
     backgroundColor: identidad.oro,
     [ANGOSTO]: {
       display: "none",
@@ -119,13 +120,25 @@ const useEstilos = makeStyles({
     alignItems: "center",
     justifyContent: "center",
     padding: "48px 24px",
+    ...fondoPlano,
   },
   formulario: {
     width: "100%",
-    maxWidth: "360px",
+    maxWidth: "420px",
     display: "flex",
     flexDirection: "column",
     gap: "20px",
+    padding: "32px",
+    backgroundColor: tokens.colorNeutralBackground1,
+    border: `1.5px solid ${tokens.colorNeutralStroke2}`,
+    borderRadius: tokens.borderRadiusLarge,
+    "@media (max-width: 480px)": {
+      padding: "24px 20px",
+    },
+  },
+  volver: {
+    color: tokens.colorNeutralForeground3,
+    fontSize: tokens.fontSizeBase300,
   },
   encabezado: {
     display: "flex",
@@ -143,8 +156,8 @@ const useEstilos = makeStyles({
     textAlign: "center",
   },
   pie: {
-    marginTop: "48px",
-    color: tokens.colorNeutralForeground4,
+    marginTop: "32px",
+    color: tokens.colorNeutralForeground3,
   },
 });
 
@@ -186,11 +199,11 @@ export function LoginPage() {
           <h1 className={estilos.titulo}>{env.appName}</h1>
           <div className={estilos.acento} />
           <p className={estilos.lema}>
-            Horarios, reservas, laboratorios y objetos perdidos de la facultad, en un solo lugar.
+            Horarios, reservas, equipos, tareas y bitácora de los laboratorios de cómputo, en un solo plano.
           </p>
         </div>
         <Caption1 className={estilos.facultad}>
-          Facultad de Ingeniería en Ciencias de la Computación y Telecomunicaciones · UAGRM
+          Facultad de Ingeniería en Ciencias de la Computación y Telecomunicaciones, UAGRM
         </Caption1>
       </aside>
 
@@ -268,7 +281,11 @@ export function LoginPage() {
             ¿Olvidaste tu contraseña? Pídele al jefe de laboratorio que la restablezca.
           </Caption1>
         </form>
-        <Caption1 className={estilos.pie}>© {new Date().getFullYear()} FICCT · UAGRM</Caption1>
+        <Caption1 className={estilos.pie}>
+          <Link to="/" className={estilos.volver}>
+            Volver al inicio
+          </Link>
+        </Caption1>
       </main>
     </div>
   );

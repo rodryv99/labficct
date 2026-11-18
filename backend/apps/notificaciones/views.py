@@ -8,9 +8,15 @@ from rest_framework.views import APIView
 
 from apps.core.permissions import TienePermiso
 
-from . import avisos
+from . import avisos, services
 from .models import Notificacion
-from .serializers import AvisoAulaSerializer, NotificacionSerializer, ResumenSerializer
+from .serializers import (
+    AvisoAulaSerializer,
+    DispositivoPushSerializer,
+    NotificacionSerializer,
+    PreferenciaPushSerializer,
+    ResumenSerializer,
+)
 
 
 class NotificacionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -51,6 +57,63 @@ class NotificacionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             leida_en=timezone.now()
         )
         return Response({"marcadas": marcadas})
+
+
+class DispositivosView(APIView):
+    """Registra o da de baja el token de FCM del teléfono de quien tiene la sesión.
+
+    - POST: la app lo llama al iniciar sesión y cada vez que FCM renueva el token.
+    - DELETE: al cerrar sesión, para que ese teléfono deje de recibir sus avisos.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=DispositivoPushSerializer,
+        responses=inline_serializer("DispositivoGuardado", {"ok": serializers.BooleanField()}),
+    )
+    def post(self, request):
+        serializer = DispositivoPushSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.registrar_dispositivo(
+            usuario=request.user,
+            token=serializer.validated_data["token"],
+            plataforma=serializer.validated_data["plataforma"],
+        )
+        return Response({"ok": True})
+
+    @extend_schema(
+        request=DispositivoPushSerializer,
+        responses=inline_serializer("DispositivoBaja", {"dados_de_baja": serializers.IntegerField()}),
+    )
+    def delete(self, request):
+        serializer = DispositivoPushSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        bajas = services.baja_dispositivo(usuario=request.user, token=serializer.validated_data["token"])
+        return Response({"dados_de_baja": bajas})
+
+
+class PreferenciasPushView(APIView):
+    """Las preferencias de push de quien tiene la sesión: el interruptor general y
+    el "solo en turno"."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses=PreferenciaPushSerializer)
+    def get(self, request):
+        pref = services.preferencia_de(request.user)
+        return Response(PreferenciaPushSerializer(pref).data)
+
+    @extend_schema(request=PreferenciaPushSerializer, responses=PreferenciaPushSerializer)
+    def put(self, request):
+        serializer = PreferenciaPushSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        pref = services.guardar_preferencia(
+            usuario=request.user,
+            habilitado=serializer.validated_data.get("habilitado"),
+            solo_en_turno=serializer.validated_data.get("solo_en_turno"),
+        )
+        return Response(PreferenciaPushSerializer(pref).data)
 
 
 class AvisoAulaView(APIView):

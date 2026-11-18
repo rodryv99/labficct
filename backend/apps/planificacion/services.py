@@ -460,6 +460,7 @@ def _avisar_por_aprobar(reserva, choques, usuario):
         enlace=_enlace_reserva(reserva),
         datos={"reserva_id": reserva.pk},
         excepto=usuario,
+        push=True,
     )
 
 

@@ -1,0 +1,2 @@
+DejaVu Sans (https://dejavu-fonts.github.io/), licencia libre: se puede copiar y distribuir.
+La usa mapa.py para dibujar las bitácoras exportadas (JPG, PNG y PDF) con tildes y ñ.

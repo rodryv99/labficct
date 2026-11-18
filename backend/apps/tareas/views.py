@@ -59,7 +59,7 @@ class TareaViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         avances = AvanceTarea.objects.select_related("autor")
         qs = Tarea.objects.select_related(
-            "laboratorio", "creado_por", "completada_por", "revision"
+            "laboratorio", "creado_por", "completada_por", "revision", "verificacion"
         ).prefetch_related("responsables", Prefetch("avances", queryset=avances))
         if self.action == "list" and self.request.query_params.get("archivadas") not in ("1", "true"):
             limite = timezone.now() - timedelta(days=DIAS_EN_EL_PIZARRON)

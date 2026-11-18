@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Notificacion, TipoNotificacion
+from .models import Notificacion, Plataforma, PreferenciaPush, TipoNotificacion
 
 
 class NotificacionSerializer(serializers.ModelSerializer):
@@ -32,6 +32,19 @@ class ResumenSerializer(serializers.Serializer):
     ultima_id = serializers.IntegerField(
         allow_null=True, help_text="La no leída más reciente: si cambia, llegó algo nuevo."
     )
+
+
+class DispositivoPushSerializer(serializers.Serializer):
+    """Lo que manda la app al iniciar sesión (y al cerrarla) para recibir push."""
+
+    token = serializers.CharField(max_length=255)
+    plataforma = serializers.ChoiceField(choices=Plataforma.choices, default=Plataforma.ANDROID)
+
+
+class PreferenciaPushSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PreferenciaPush
+        fields = ["habilitado", "solo_en_turno"]
 
 
 class AvisoAulaSerializer(serializers.Serializer):

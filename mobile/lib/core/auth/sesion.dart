@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../datos/proveedores.dart';
 import '../modelos/modelos.dart';
 import '../network/repositorio.dart';
 
@@ -36,10 +39,16 @@ class SesionNotifier extends Notifier<Sesion> {
         return;
       }
       state = Sesion(EstadoSesion.autenticado, usuario: await _repo.yo());
+      _activarPush();
     } catch (_) {
       // Pase lo que pase, la app nunca se queda en la pantalla de carga.
       state = const Sesion(EstadoSesion.anonimo);
     }
+  }
+
+  /// Registra este teléfono para recibir push. No bloquea ni rompe la sesión.
+  void _activarPush() {
+    unawaited(Future(() => ref.read(servicioPushProvider).iniciarSesion()));
   }
 
   Future<void> iniciar(String usuario, String password) async {
@@ -52,10 +61,15 @@ class SesionNotifier extends Notifier<Sesion> {
       EstadoSesion.autenticado,
       usuario: Usuario.fromJson(datos['usuario'] as Map<String, dynamic>),
     );
+    _activarPush();
   }
 
   Future<void> cerrar() async {
     final tokens = ref.read(almacenTokensProvider);
+    // Da de baja este teléfono antes de soltar la sesión (el token de acceso aún sirve).
+    try {
+      await ref.read(servicioPushProvider).cerrarSesion();
+    } catch (_) {}
     try {
       await _repo.logout(await tokens.leerRefresh());
     } catch (_) {

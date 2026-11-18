@@ -84,6 +84,84 @@ class _HojaPerfil extends ConsumerWidget {
             child: Align(alignment: Alignment.centerLeft, child: Etiqueta(usuario.rolNombre, tono: Tono.marca)),
           ),
           const Divider(),
+          // Solo los auxiliares marcan asistencia (el Superadmin tiene el permiso, pero no marca).
+          if (usuario.rol == 'auxiliar' && usuario.puede('marcaciones.marcar'))
+            ListTile(
+              leading: const Icon(Icons.fingerprint),
+              title: const Text('Mi asistencia'),
+              subtitle: const Text('Marcar mi entrada y mi salida'),
+              onTap: () => _abrir(context, '/mi-asistencia'),
+            ),
+          if (usuario.puede('marcaciones.gestionar'))
+            ListTile(
+              leading: const Icon(Icons.how_to_reg_outlined),
+              title: const Text('Control de asistencia'),
+              subtitle: const Text('Marcaciones, reportes, lugares y horarios'),
+              onTap: () => _abrir(context, '/control-asistencia'),
+            ),
+          if (usuario.puede('respaldos.ver'))
+            ListTile(
+              leading: const Icon(Icons.backup_outlined),
+              title: const Text('Respaldos'),
+              subtitle: const Text('Copias de seguridad de la base de datos'),
+              onTap: () => _abrir(context, '/respaldos'),
+            ),
+          if (usuario.puede('usuarios.gestionar'))
+            ListTile(
+              leading: const Icon(Icons.group_outlined),
+              title: const Text('Usuarios'),
+              subtitle: const Text('Cuentas de auxiliares, docentes y más'),
+              onTap: () => _abrir(context, '/usuarios'),
+            ),
+          if (usuario.puede('inventario.ver'))
+            ListTile(
+              leading: const Icon(Icons.inventory_outlined),
+              title: const Text('Inventario'),
+              subtitle: const Text('Activos de los laboratorios y verificaciones'),
+              onTap: () => _abrir(context, '/inventario'),
+            ),
+          if (usuario.puede('horarios.gestionar'))
+            ListTile(
+              leading: const Icon(Icons.calendar_month_outlined),
+              title: const Text('Planificación'),
+              subtitle: const Text('Horarios, periodos, materias y docentes'),
+              onTap: () => _abrir(context, '/planificacion'),
+            ),
+          if (usuario.puede('revisiones.ver'))
+            ListTile(
+              leading: const Icon(Icons.fact_check_outlined),
+              title: const Text('Revisiones periódicas'),
+              subtitle: const Text('Revisiones programadas de los laboratorios'),
+              onTap: () => _abrir(context, '/revisiones'),
+            ),
+          if (usuario.puede('preferencias.ver'))
+            ListTile(
+              leading: const Icon(Icons.rule_folder_outlined),
+              title: const Text('Preferencias de docentes'),
+              subtitle: const Text('Cómo quiere el aula cada docente'),
+              onTap: () => _abrir(context, '/preferencias/docentes'),
+            ),
+          if (usuario.puede('elementos.gestionar'))
+            ListTile(
+              leading: const Icon(Icons.category_outlined),
+              title: const Text('Elementos del mapa'),
+              subtitle: const Text('Catálogo de PC, proyector, silla…'),
+              onTap: () => _abrir(context, '/elementos'),
+            ),
+          if (usuario.puede('software.gestionar'))
+            ListTile(
+              leading: const Icon(Icons.apps_outlined),
+              title: const Text('Software'),
+              subtitle: const Text('Catálogo de programas de los laboratorios'),
+              onTap: () => _abrir(context, '/software'),
+            ),
+          if (usuario.puede('preferencias.gestionar'))
+            ListTile(
+              leading: const Icon(Icons.quiz_outlined),
+              title: const Text('Preguntas de preferencias'),
+              subtitle: const Text('Lo que cada docente puede elegir'),
+              onTap: () => _abrir(context, '/preferencias/opciones'),
+            ),
           if (usuario.puede('preferencias.propias'))
             ListTile(
               leading: const Icon(Icons.tune),
@@ -98,6 +176,12 @@ class _HojaPerfil extends ConsumerWidget {
               trailing: abiertas > 0 ? Badge(label: Text('$abiertas')) : null,
               onTap: () => _abrir(context, '/solicitudes'),
             ),
+          ListTile(
+            leading: const Icon(Icons.notifications_outlined),
+            title: const Text('Notificaciones'),
+            subtitle: const Text('Avisos push en este teléfono'),
+            onTap: () => _abrir(context, '/notificaciones/preferencias'),
+          ),
           ListTile(
             leading: const Icon(Icons.lock_reset_outlined),
             title: const Text('Cambiar contraseña'),

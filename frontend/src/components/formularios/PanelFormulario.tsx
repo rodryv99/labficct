@@ -14,6 +14,13 @@ import { ConfirmarDialogo } from "../feedback/ConfirmarDialogo";
 import { IconoCerrar } from "../iconos/iconos";
 
 const useEstilos = makeStyles({
+  // En teléfonos el panel ocupa todo el ancho (si no, un panel "medium" o "large" se sale de pantalla).
+  drawer: {
+    "@media (max-width: 640px)": {
+      width: "100vw",
+      maxWidth: "100vw",
+    },
+  },
   subtitulo: {
     color: tokens.colorNeutralForeground3,
     display: "block",
@@ -70,6 +77,7 @@ export function PanelFormulario({
   return (
     <>
       <OverlayDrawer
+        className={estilos.drawer}
         open={abierto}
         position="end"
         size={tamano}
