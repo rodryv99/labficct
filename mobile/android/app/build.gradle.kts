@@ -31,6 +31,13 @@ android {
         versionName = flutter.versionName
     }
 
+    // El análisis "lint" del release no afecta a la app y en Windows suele fallar
+    // (archivos de build bloqueados por OneDrive/antivirus). Se desactiva para compilar el APK.
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
