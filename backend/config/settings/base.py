@@ -212,6 +212,13 @@ FIELD_ENCRYPTION_KEY = env("FIELD_ENCRYPTION_KEY", default="")
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
+# Sin worker (p. ej. en el plan gratis de Render): con True, las tareas ".delay()" se ejecutan
+# en el momento dentro del propio proceso web, sin pasar por Redis. Los push salen igual.
+# Las tareas periódicas las dispara entonces /notificaciones/tick/ (ver TICK_CLAVE).
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
+CELERY_TASK_EAGER_PROPAGATES = False
+# Clave para el endpoint que un cron externo llama cada minuto. Vacía = endpoint desactivado.
+TICK_CLAVE = env("TICK_CLAVE", default="")
 # Tareas periódicas. El worker las ejecuta porque arranca con --beat (docker-compose.yml).
 CELERY_BEAT_SCHEDULE = {
     # Alistar/cerrar aulas: cada minuto revisa qué clases y reservas empiezan o terminan.

@@ -134,3 +134,45 @@ class AvisoAulaView(APIView):
             tipo=d["tipo"], evento_id=d["evento"], fecha=d["fecha"], nota=d["nota"], usuario=request.user
         )
         return Response({"enviadas": enviadas})
+
+
+class TickView(APIView):
+    """Dispara las tareas periódicas desde un cron externo (cuando no hay worker de Celery).
+
+    GET /notificaciones/tick/?clave=<TICK_CLAVE>  → avisos de aulas, recordatorios de turno,
+    revisiones que vencen y, una vez al día, la limpieza. Sin TICK_CLAVE configurada responde 404.
+    """
+
+    authentication_classes: list = []
+    permission_classes: list = []
+
+    @extend_schema(exclude=True)
+    def get(self, request):
+        import hmac
+
+        from django.conf import settings
+        from django.http import Http404
+
+        esperada = settings.TICK_CLAVE
+        recibida = request.query_params.get("clave", "")
+        if not esperada or not hmac.compare_digest(esperada, recibida):
+            raise Http404
+
+        from apps.bitacora.tasks import revisiones_vencidas
+
+        from .tasks import avisos_de_aulas, limpiar_notificaciones, recordatorio_turno
+
+        ahora = timezone.localtime()
+        tareas = [avisos_de_aulas, recordatorio_turno]
+        if ahora.minute % 15 == 0:
+            tareas.append(revisiones_vencidas)
+        if ahora.hour == 3 and ahora.minute == 0:
+            tareas.append(limpiar_notificaciones)
+
+        resultado = {}
+        for tarea in tareas:
+            try:
+                resultado[tarea.name] = tarea()
+            except Exception as error:  # una tarea con error no debe tumbar a las demás
+                resultado[tarea.name] = f"error: {error}"
+        return Response({"estado": "ok", "hora": ahora, "tareas": resultado})
