@@ -174,6 +174,17 @@ class MeView(APIView):
         return Response(UsuarioMeSerializer(request.user).data)
 
 
+class AceptarTerminosView(APIView):
+    """El usuario acepta la versión vigente de los términos y condiciones."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(request=None, responses=UsuarioMeSerializer)
+    def post(self, request):
+        request.user.aceptar_terminos()
+        return Response(UsuarioMeSerializer(request.user).data)
+
+
 class CambiarPasswordView(APIView):
     permission_classes = [IsAuthenticated]
 

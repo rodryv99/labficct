@@ -18,6 +18,7 @@ class UsuarioMeSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.CharField(read_only=True)
     rol_nombre = serializers.CharField(source="get_rol_display", read_only=True)
     permisos = serializers.SerializerMethodField()
+    terminos_aceptados = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Usuario
@@ -32,6 +33,7 @@ class UsuarioMeSerializer(serializers.ModelSerializer):
             "rol_nombre",
             "telefono",
             "permisos",
+            "terminos_aceptados",
         ]
         read_only_fields = fields
 

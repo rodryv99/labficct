@@ -25,6 +25,7 @@ class Usuario {
     required this.rol,
     required this.rolNombre,
     required this.permisos,
+    this.terminosAceptados = true,
   });
 
   final int id;
@@ -35,6 +36,7 @@ class Usuario {
   final String rol;
   final String rolNombre;
   final List<String> permisos;
+  final bool terminosAceptados;
 
   bool puede(String permiso) => permisos.contains(permiso);
 
@@ -52,6 +54,8 @@ class Usuario {
         rol: _texto(j['rol']),
         rolNombre: _texto(j['rol_nombre']),
         permisos: _textos(j['permisos']),
+        // Si el backend no manda el campo, no bloqueamos (se asume aceptado).
+        terminosAceptados: j['terminos_aceptados'] == null ? true : j['terminos_aceptados'] == true,
       );
 }
 

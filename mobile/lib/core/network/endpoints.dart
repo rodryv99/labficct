@@ -6,6 +6,7 @@ abstract final class Endpoints {
   static const refresh = '/auth/refresh/';
   static const logout = '/auth/logout/';
   static const me = '/auth/me/';
+  static const aceptarTerminos = '/auth/terminos/aceptar/';
   static const cambiarPassword = '/auth/cambiar-password/';
 
   // Usuarios

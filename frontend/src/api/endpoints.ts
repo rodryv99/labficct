@@ -12,6 +12,7 @@ export const ENDPOINTS = {
     refresh: "/auth/refresh/",
     logout: "/auth/logout/",
     me: "/auth/me/",
+    aceptarTerminos: "/auth/terminos/aceptar/",
     cambiarPassword: "/auth/cambiar-password/",
   },
   usuarios: {

@@ -34,6 +34,11 @@ class Repositorio {
     return Usuario.fromJson(r.data!);
   }
 
+  Future<Usuario> aceptarTerminos() async {
+    final r = await _dio.post<Map<String, dynamic>>(Endpoints.aceptarTerminos);
+    return Usuario.fromJson(r.data!);
+  }
+
   Future<void> logout(String? refresh) async {
     await _dio.post<void>(Endpoints.logout, data: {'refresh': refresh});
   }

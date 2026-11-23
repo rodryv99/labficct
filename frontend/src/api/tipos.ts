@@ -25,6 +25,7 @@ export interface UsuarioMe {
   rol_nombre: string;
   telefono: string;
   permisos: string[];
+  terminos_aceptados: boolean;
 }
 
 export interface Usuario {

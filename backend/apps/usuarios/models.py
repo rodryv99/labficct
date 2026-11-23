@@ -39,6 +39,15 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     telefono = models.CharField("teléfono", max_length=30, blank=True)
     is_active = models.BooleanField("activo", default=True)
     is_staff = models.BooleanField("acceso al panel técnico", default=False)
+    # Términos y condiciones: cuándo los aceptó y qué versión. Mientras la versión
+    # aceptada no coincida con la vigente (settings.TERMINOS_VERSION), se le vuelve
+    # a mostrar la pantalla de aceptación al iniciar sesión.
+    terminos_aceptados_en = models.DateTimeField(
+        "términos aceptados el", null=True, blank=True
+    )
+    terminos_version = models.CharField(
+        "versión de términos aceptada", max_length=20, blank=True, default=""
+    )
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
@@ -59,3 +68,21 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     @property
     def nombre_completo(self) -> str:
         return f"{self.nombres} {self.apellidos}".strip()
+
+    @property
+    def terminos_aceptados(self) -> bool:
+        """True si ya aceptó la versión vigente de los términos y condiciones."""
+        from django.conf import settings
+
+        return bool(self.terminos_aceptados_en) and (
+            self.terminos_version == settings.TERMINOS_VERSION
+        )
+
+    def aceptar_terminos(self) -> None:
+        """Registra la aceptación de la versión vigente de los términos."""
+        from django.conf import settings
+        from django.utils import timezone
+
+        self.terminos_aceptados_en = timezone.now()
+        self.terminos_version = settings.TERMINOS_VERSION
+        self.save(update_fields=["terminos_aceptados_en", "terminos_version", "actualizado_en"])

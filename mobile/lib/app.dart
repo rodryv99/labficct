@@ -8,6 +8,7 @@ import 'core/datos/proveedores.dart';
 import 'core/modelos/modelos.dart';
 import 'core/router/router.dart';
 import 'core/theme/tema.dart';
+import 'features/auth/terminos_page.dart';
 import 'features/notificaciones/notificaciones_page.dart';
 
 class LabFicctApp extends ConsumerWidget {
@@ -35,8 +36,26 @@ class LabFicctApp extends ConsumerWidget {
       locale: const Locale('es'),
       supportedLocales: _idiomas,
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      builder: (context, child) => _GanchoPush(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) =>
+          _GanchoPush(child: _PuertaTerminos(child: child ?? const SizedBox.shrink())),
     );
+  }
+}
+
+/// Mientras el usuario con sesión no haya aceptado los términos, no deja ver el
+/// resto de la app: muestra la pantalla de aceptación encima de todo.
+class _PuertaTerminos extends ConsumerWidget {
+  const _PuertaTerminos({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sesion = ref.watch(sesionProvider);
+    final usuario = sesion.usuario;
+    if (sesion.estado == EstadoSesion.autenticado && usuario != null && !usuario.terminosAceptados) {
+      return const TerminosPage();
+    }
+    return child;
   }
 }
 

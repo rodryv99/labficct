@@ -240,6 +240,11 @@ CELERY_BEAT_SCHEDULE = {
     ),
 }
 
+# ── Términos y condiciones ──────────────────────────────
+# Versión vigente de los términos. Al cambiarla (p. ej. "2"), todos los usuarios
+# vuelven a ver la pantalla de aceptación en su próximo inicio de sesión.
+TERMINOS_VERSION = env("TERMINOS_VERSION", default="1")
+
 # ── Avisos a los auxiliares ─────────────────────────────
 # Cuántos minutos antes de cada clase o reserva se avisa que alisten el aula.
 AVISO_ALISTAR_MINUTOS = env.int("AVISO_ALISTAR_MINUTOS", default=15)

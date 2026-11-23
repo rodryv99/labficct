@@ -64,6 +64,12 @@ class SesionNotifier extends Notifier<Sesion> {
     _activarPush();
   }
 
+  /// Registra la aceptación de los términos y actualiza el usuario en sesión.
+  Future<void> aceptarTerminos() async {
+    final usuario = await _repo.aceptarTerminos();
+    state = Sesion(EstadoSesion.autenticado, usuario: usuario);
+  }
+
   Future<void> cerrar() async {
     final tokens = ref.read(almacenTokensProvider);
     // Da de baja este teléfono antes de soltar la sesión (el token de acceso aún sirve).

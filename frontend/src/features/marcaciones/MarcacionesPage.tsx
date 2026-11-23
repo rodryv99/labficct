@@ -451,7 +451,7 @@ export function MarcacionesPage() {
       />
 
       <TabList className={estilos.pestanas} selectedValue={pestana} onTabSelect={(_, d) => setPestana(d.value as Pestana)}>
-        <Tab value="hoy">Hoy</Tab>
+        <Tab value="hoy">Asignar horario y lugar</Tab>
         <Tab value="marcaciones">Marcaciones</Tab>
         <Tab value="resumen">Resumen por auxiliar</Tab>
         <Tab value="lugares">Lugares</Tab>

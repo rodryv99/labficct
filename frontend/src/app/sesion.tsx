@@ -6,6 +6,7 @@ import { alTerminarSesion, api, guardarTokenAcceso, renovarToken } from "../api/
 import { ENDPOINTS } from "../api/endpoints";
 import type { UsuarioMe } from "../api/tipos";
 import { PantallaCarga } from "../components/feedback/PantallaCarga";
+import { PantallaTerminos } from "../features/sistema/PantallaTerminos";
 import { SinPermisoPage } from "../features/sistema/SinPermisoPage";
 
 type Estado = "cargando" | "anonimo" | "autenticado";
@@ -112,10 +113,12 @@ export function useSesion(): ContextoSesion {
 
 /** Solo deja pasar con sesión iniciada; si no, manda al login y recuerda a dónde iba. */
 export function RutaProtegida({ children }: { children: ReactNode }) {
-  const { estado } = useSesion();
+  const { estado, usuario } = useSesion();
   const ubicacion = useLocation();
   if (estado === "cargando") return <PantallaCarga />;
   if (estado === "anonimo") return <Navigate to="/login" replace state={{ desde: ubicacion.pathname + ubicacion.search }} />;
+  // Primer ingreso: hasta que no acepte los términos, no puede usar el sistema.
+  if (usuario && !usuario.terminos_aceptados) return <PantallaTerminos />;
   return <>{children}</>;
 }
 
